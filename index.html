@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0b2b0d">
+    <title>Radha Naam · Tap Counter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #0b2b0d;
+            font-family: 'Segoe UI', 'Poppins', system-ui, sans-serif;
+            touch-action: manipulation;
+        }
+
+        /* ===== FULL SCREEN TAP AREA ===== */
+        #app {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at 50% 30%, #1f4a21 0%, #0b2b0d 55%, #051206 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        /* ambient glow rings */
+        #app::before,
+        #app::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        #app::before {
+            width: 70vmin;
+            height: 70vmin;
+            background: radial-gradient(circle, rgba(80, 220, 100, 0.12) 0%, transparent 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: pulseGlow 4s ease-in-out infinite;
+        }
+        #app::after {
+            width: 40vmin;
+            height: 40vmin;
+            background: radial-gradient(circle, rgba(140, 255, 160, 0.08) 0%, transparent 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: pulseGlow 3s ease-in-out infinite reverse;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+        }
+
+        /* ===== RADHA NAME ===== */
+        .radha-title {
+            font-size: clamp(2.2rem, 9vmin, 4rem);
+            font-weight: 900;
+            letter-spacing: 0.35em;
+            color: #f1f9f1;
+            text-shadow:
+                0 0 10px #b9f6ca,
+                0 0 28px #66bb6a,
+                0 0 50px #2e7d32,
+                0 0 90px #1b5e20;
+            margin-bottom: 6vmin;
+            transform: scale(1);
+            transition: transform 0.12s ease;
+            position: relative;
+            z-index: 5;
+            padding-left: 0.35em; /* balance letter-spacing */
+        }
+
+        #app:active .radha-title {
+            transform: scale(0.96);
+        }
+
+        /* ===== COUNTERS ===== */
+        .counters {
+            display: flex;
+            gap: 5vmin;
+            justify-content: center;
+            align-items: stretch;
+            position: relative;
+            z-index: 5;
+        }
+
+        .count-box {
+            background: rgba(0, 30, 5, 0.55);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(130, 230, 130, 0.35);
+            border-radius: 28px;
+            padding: 3vmin 5vmin;
+            min-width: 34vmin;
+            text-align: center;
+            box-shadow:
+                inset 0 2px 14px rgba(0, 0, 0, 0.55),
+                0 10px 24px rgba(0, 0, 0, 0.45),
+                0 0 0 1px rgba(160, 255, 160, 0.08);
+        }
+
+        .count-label {
+            font-size: clamp(0.55rem, 1.8vmin, 0.8rem);
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: #b9f6ca;
+            font-weight: 600;
+            margin-bottom: 1.5vmin;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+        }
+
+        .count-value {
+            font-size: clamp(2.4rem, 9vmin, 4.2rem);
+            font-weight: 800;
+            color: #ffffff;
+            text-shadow: 0 0 16px #a5d6a7, 0 0 34px #4caf50;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            display: inline-block;
+            transition: transform 0.15s ease;
+        }
+
+        .session-value {
+            color: #ffe082;
+            text-shadow: 0 0 16px #ffb300, 0 0 34px #ff8f00;
+        }
+
+        /* digit roll animation */
+        .count-value.roll {
+            animation: digitRoll 0.28s cubic-bezier(0.3, 1.4, 0.6, 1);
+        }
+        @keyframes digitRoll {
+            0%   { transform: translateY(0);   opacity: 1; }
+            40%  { transform: translateY(-55%); opacity: 0; }
+            55%  { transform: translateY(55%);  opacity: 0; }
+            100% { transform: translateY(0);   opacity: 1; }
+        }
+
+        /* ===== TAP HINT ===== */
+        .tap-hint {
+            position: absolute;
+            bottom: 16vmin;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: #aed581;
+            font-size: clamp(0.55rem, 1.7vmin, 0.75rem);
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            opacity: 0.75;
+            z-index: 5;
+            pointer-events: none;
+            animation: hintBlink 3s ease-in-out infinite;
+        }
+        @keyframes hintBlink {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.9; }
+        }
+
+        /* ===== SETTINGS BUTTON ===== */
+        .settings-btn {
+            position: fixed;
+            top: max(18px, env(safe-area-inset-top));
+            right: max(18px, env(safe-area-inset-right));
+            z-index: 50;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            border: 1px solid rgba(150, 240, 150, 0.45);
+            background: rgba(10, 40, 12, 0.75);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: #d4ffd4;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55), inset 0 1px 2px rgba(255,255,255,0.12);
+            transition: transform 0.15s ease, background 0.2s ease;
+        }
+        .settings-btn:active {
+            transform: scale(0.9);
+            background: rgba(30, 80, 30, 0.9);
+        }
+
+        /* ===== SETTINGS PANEL ===== */
+        .settings-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .settings-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .settings-panel {
+            position: fixed;
+            left: 50%;
+            bottom: 0;
+            transform: translate(-50%, 110%);
+            width: 100%;
+            max-width: 480px;
+            background: linear-gradient(180deg, #103611 0%, #0a240b 100%);
+            border-radius: 32px 32px 0 0;
+            padding: 24px 22px calc(28px + env(safe-area-inset-bottom));
+            z-index: 101;
+            box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(150, 255, 150, 0.2);
+            border: 1px solid rgba(120, 220, 120, 0.3);
+            border-bottom: none;
+            transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .settings-panel.open {
+            transform: translate(-50%, 0);
+        }
+
+        .settings-handle {
+            width: 44px;
+            height: 5px;
+            border-radius: 4px;
+            background: rgba(150, 220, 150, 0.4);
+            margin: 0 auto 20px;
+        }
+
+        .settings-title {
+            color: #e8f5e9;
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-bottom: 22px;
+            text-align: center;
+            text-shadow: 0 0 12px rgba(120, 255, 140, 0.4);
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 4px;
+            border-bottom: 1px solid rgba(120, 200, 120, 0.15);
+        }
+        .setting-row:last-of-type {
+            border-bottom: none;
+        }
+
+        .setting-info {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .setting-name {
+            color: #e8f5e9;
+            font-size: 0.95rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+        }
+        .setting-desc {
+            color: #9ccc9c;
+            font-size: 0.72rem;
+            letter-spacing: 0.04em;
+        }
+
+        /* toggle switch */
+        .switch {
+            position: relative;
+            width: 58px;
+            height: 32px;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            inset: 0;
+            background: #1e3d20;
+            border-radius: 32px;
+            border: 1px solid rgba(120, 200, 120, 0.35);
+            transition: background 0.25s ease, box-shadow 0.25s ease;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);
+        }
+        .slider::before {
+            content: '';
+            position: absolute;
+            height: 24px;
+            width: 24px;
+            left: 4px;
+            top: 3px;
+            background: #cfd8cf;
+            border-radius: 50%;
+            transition: transform 0.25s cubic-bezier(0.3, 1.4, 0.6, 1), background 0.25s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+        }
+        .switch input:checked + .slider {
+            background: linear-gradient(135deg, #43a047, #2e7d32);
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.3), 0 0 16px rgba(80, 220, 100, 0.5);
+        }
+        .switch input:checked + .slider::before {
+            transform: translateX(26px);
+            background: #ffffff;
+        }
+
+        /* action buttons */
+        .settings-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        .action-btn {
+            flex: 1;
+            padding: 16px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: 1px solid rgba(130, 220, 130, 0.4);
+            transition: transform 0.1s ease, background 0.2s ease;
+        }
+        .action-btn:active {
+            transform: scale(0.96);
+        }
+        .action-btn.reset-session {
+            background: linear-gradient(180deg, #2e7d32, #1b5e20);
+            color: #f1f9f1;
+            box-shadow: 0 5px 0 #0a2a0c, 0 8px 18px rgba(0,0,0,0.4);
+        }
+        .action-btn.reset-all {
+            background: rgba(80, 30, 30, 0.5);
+            color: #ffcccc;
+            border-color: rgba(230, 120, 120, 0.4);
+            box-shadow: 0 5px 0 #3d0f0f, 0 8px 18px rgba(0,0,0,0.4);
+        }
+
+        .close-hint {
+            text-align: center;
+            color: #7ca87c;
+            font-size: 0.68rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-top: 18px;
+            opacity: 0.7;
+        }
+
+        /* ===== TAP RIPPLE ===== */
+        .ripple {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            background: radial-gradient(circle, rgba(160, 255, 170, 0.55) 0%, rgba(80, 220, 100, 0.15) 45%, transparent 70%);
+            transform: translate(-50%, -50%) scale(0);
+            animation: rippleAnim 0.55s ease-out forwards;
+            z-index: 20;
+        }
+        @keyframes rippleAnim {
+            to {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- FULL SCREEN TAP AREA -->
+<div id="app" aria-label="Tap anywhere to count Radha naam">
+    <div class="radha-title">RADHA</div>
+
+    <div class="counters">
+        <div class="count-box">
+            <div class="count-label">Total</div>
+            <div class="count-value" id="totalCount">00</div>
+        </div>
+        <div class="count-box">
+            <div class="count-label">Session</div>
+            <div class="count-value session-value" id="sessionCount">00</div>
+        </div>
+    </div>
+
+    <div class="tap-hint">Tap anywhere</div>
+</div>
+
+<!-- SETTINGS BUTTON -->
+<button class="settings-btn" id="settingsBtn" aria-label="Open settings">⚙</button>
+
+<!-- SETTINGS OVERLAY -->
+<div class="settings-overlay" id="settingsOverlay"></div>
+
+<!-- SETTINGS PANEL -->
+<div class="settings-panel" id="settingsPanel" role="dialog" aria-modal="true" aria-label="Settings">
+    <div class="settings-handle"></div>
+    <div class="settings-title">Settings</div>
+
+    <div class="setting-row">
+        <div class="setting-info">
+            <span class="setting-name">Sound</span>
+            <span class="setting-desc">Radha chime on each tap</span>
+        </div>
+        <label class="switch">
+            <input type="checkbox" id="soundSwitch" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="setting-row">
+        <div class="setting-info">
+            <span class="setting-name">Vibration</span>
+            <span class="setting-desc">Solid haptic feedback</span>
+        </div>
+        <label class="switch">
+            <input type="checkbox" id="vibeSwitch" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="settings-actions">
+        <button class="action-btn reset-session" id="resetSessionBtn">Reset Session</button>
+        <button class="action-btn reset-all" id="resetAllBtn">Reset All</button>
+    </div>
+
+    <div class="close-hint">Tap outside to close</div>
+</div>
+
+<script>
+    (function() {
+        'use strict';
+
+        // ---------- DOM ----------
+        const app            = document.getElementById('app');
+        const totalCountEl   = document.getElementById('totalCount');
+        const sessionCountEl = document.getElementById('sessionCount');
+        const settingsBtn    = document.getElementById('settingsBtn');
+        const settingsPanel  = document.getElementById('settingsPanel');
+        const settingsOverlay= document.getElementById('settingsOverlay');
+        const soundSwitch    = document.getElementById('soundSwitch');
+        const vibeSwitch     = document.getElementById('vibeSwitch');
+        const resetSessionBtn= document.getElementById('resetSessionBtn');
+        const resetAllBtn    = document.getElementById('resetAllBtn');
+
+        // ---------- STATE ----------
+        let total   = 0;
+        let session = 0;
+        let soundOn = true;
+        let vibeOn  = true;
+
+        // ---------- FORMAT: 01, 02 ... ----------
+        function fmt(n) {
+            return n < 10 ? '0' + n : '' + n;
+        }
+
+        // ---------- ANIMATED COUNT UPDATE ----------
+        // Rolls the digit, then shows the new value. Classic odometer effect.
+        function animateCount(el, newValue) {
+            const target = fmt(newValue);
+            // If the value is unchanged, do nothing
+            if (el.textContent === target) return;
+
+            el.classList.remove('roll');
+            // force reflow to restart animation
+            void el.offsetWidth;
+            el.classList.add('roll');
+
+            // halfway through the animation, swap the text
+            setTimeout(() => {
+                el.textContent = target;
+            }, 110);
+
+            // cleanup class after animation
+            setTimeout(() => {
+                el.classList.remove('roll');
+            }, 300);
+        }
+
+        // ---------- RENDER COUNTERS ----------
+        function renderCounters() {
+            animateCount(totalCountEl, total);
+            animateCount(sessionCountEl, session);
+        }
+
+        // ---------- AUDIO (lazy, gesture-initiated) ----------
+        let audioCtx = null;
+
+        function ensureAudio() {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    audioCtx = null;
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(() => {});
+            }
+            return audioCtx;
+        }
+
+        function playRadhaChime() {
+            if (!soundOn) return;
+            const ctx = ensureAudio();
+            if (!ctx) return;
+
+            const now = ctx.currentTime;
+            const master = ctx.createGain();
+            master.gain.setValueAtTime(0.9, now);
+            master.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+            master.connect(ctx.destination);
+
+            // "Ra" - soft C5
+            const o1 = ctx.createOscillator();
+            const g1 = ctx.createGain();
+            o1.type = 'sine';
+            o1.frequency.value = 523.25;
+            g1.gain.setValueAtTime(0.35, now);
+            g1.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+            o1.connect(g1).connect(master);
+            o1.start(now);
+            o1.stop(now + 0.55);
+
+            // "dha" - fifth above
+            const o2 = ctx.createOscillator();
+            const g2 = ctx.createGain();
+            o2.type = 'sine';
+            o2.frequency.value = 783.99;
+            g2.gain.setValueAtTime(0.0001, now + 0.06);
+            g2.gain.exponentialRampToValueAtTime(0.28, now + 0.12);
+            g2.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+            o2.connect(g2).connect(master);
+            o2.start(now + 0.06);
+            o2.stop(now + 0.7);
+
+            // sparkle
+            const o3 = ctx.createOscillator();
+            const g3 = ctx.createGain();
+            o3.type = 'triangle';
+            o3.frequency.value = 1046.5;
+            g3.gain.setValueAtTime(0.0001, now + 0.1);
+            g3.gain.exponentialRampToValueAtTime(0.1, now + 0.16);
+            g3.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+            o3.connect(g3).connect(master);
+            o3.start(now + 0.1);
+            o3.stop(now + 0.55);
+        }
+
+        // ---------- VIBRATION (solid) ----------
+        function vibrate(pattern) {
+            if (!vibeOn) return;
+            if (navigator.vibrate) {
+                navigator.vibrate(pattern);
+            }
+        }
+
+        // ---------- RIPPLE ----------
+        function spawnRipple(x, y) {
+            const r = document.createElement('div');
+            r.className = 'ripple';
+            const size = Math.max(window.innerWidth, window.innerHeight) * 0.5;
+            r.style.width  = size + 'px';
+            r.style.height = size + 'px';
+            r.style.left = x + 'px';
+            r.style.top  = y + 'px';
+            document.body.appendChild(r);
+            setTimeout(() => r.remove(), 600);
+        }
+
+        // ---------- MAIN TAP HANDLER ----------
+        let lastTap = 0;
+
+        function handleTap(e) {
+            // Don't count taps on UI controls
+            if (e.target.closest('.settings-btn') ||
+                e.target.closest('.settings-panel') ||
+                e.target.closest('.settings-overlay')) {
+                return;
+            }
+
+            // Prevent ghost double-fire on some mobile browsers
+            const now = Date.now();
+            if (now - lastTap < 40) return;
+            lastTap = now;
+
+            // 1) Count
+            total += 1;
+            session += 1;
+            renderCounters();
+
+            // 2) Vibrate — solid pattern (works on most Android; iOS ignores)
+            vibrate([35, 25, 35]);
+
+            // 3) Sound
+            playRadhaChime();
+
+            // 4) Visual ripple
+            let x = window.innerWidth / 2;
+            let y = window.innerHeight / 2;
+            if (e.touches && e.touches[0]) {
+                x = e.touches[0].clientX;
+                y = e.touches[0].clientY;
+            } else if (typeof e.clientX === 'number') {
+                x = e.clientX;
+                y = e.clientY;
+            }
+            spawnRipple(x, y);
+        }
+
+        // Listen on the whole app container (full screen)
+        app.addEventListener('pointerdown', handleTap, { passive: true });
+
+        // Fallback for browsers without PointerEvent
+        if (!window.PointerEvent) {
+            app.addEventListener('touchstart', handleTap, { passive: true });
+            app.addEventListener('mousedown', handleTap);
+        }
+
+        // ---------- SETTINGS PANEL ----------
+        function openSettings() {
+            settingsPanel.classList.add('open');
+            settingsOverlay.classList.add('open');
+        }
+        function closeSettings() {
+            settingsPanel.classList.remove('open');
+            settingsOverlay.classList.remove('open');
+        }
+
+        settingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openSettings();
+        });
+        settingsOverlay.addEventListener('click', closeSettings);
+
+        // Prevent taps inside the panel from counting
+        settingsPanel.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+        // ---------- SWITCHES ----------
+        soundSwitch.addEventListener('change', () => {
+            soundOn = soundSwitch.checked;
+            // resume audio context on enabling
+            if (soundOn) ensureAudio();
+            vibrate(12);
+        });
+
+        vibeSwitch.addEventListener('change', () => {
+            vibeOn = vibeSwitch.checked;
+            if (vibeOn) navigator.vibrate && navigator.vibrate(20);
+        });
+
+        // ---------- RESET ----------
+        resetSessionBtn.addEventListener('click', () => {
+            session = 0;
+            animateCount(sessionCountEl, session);
+            vibrate([20, 30, 20]);
+        });
+
+        resetAllBtn.addEventListener('click', () => {
+            total = 0;
+            session = 0;
+            animateCount(totalCountEl, total);
+            animateCount(sessionCountEl, session);
+            vibrate([30, 40, 30, 40, 30]);
+        });
+
+        // ---------- INIT ----------
+        // Set initial display as "00"
+        totalCountEl.textContent = '00';
+        sessionCountEl.textContent = '00';
+
+        // Prevent double-tap zoom / long-press menu on the whole screen
+        document.addEventListener('gesturestart', (e) => e.preventDefault());
+        document.addEventListener('contextmenu', (e) => {
+            if (e.target.closest('#app')) e.preventDefault();
+        });
+
+        // Unlock audio on first gesture anywhere
+        const unlock = () => {
+            ensureAudio();
+            document.removeEventListener('touchstart', unlock);
+            document.removeEventListener('mousedown', unlock);
+        };
+        document.addEventListener('touchstart', unlock, { once: true, passive: true });
+        document.addEventListener('mousedown', unlock, { once: true });
+
+    })();
+</script>
+</body>
+</html>
