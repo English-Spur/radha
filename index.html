@@ -23,7 +23,6 @@
             touch-action: manipulation;
         }
 
-        /* ===== FULL SCREEN TAP AREA ===== */
         #app {
             position: fixed;
             inset: 0;
@@ -37,7 +36,6 @@
             z-index: 1;
         }
 
-        /* ambient glow rings */
         #app::before,
         #app::after {
             content: '';
@@ -68,7 +66,6 @@
             50% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
         }
 
-        /* ===== RADHA NAME ===== */
         .radha-title {
             font-size: clamp(2.2rem, 9vmin, 4rem);
             font-weight: 900;
@@ -84,14 +81,13 @@
             transition: transform 0.12s ease;
             position: relative;
             z-index: 5;
-            padding-left: 0.35em; /* balance letter-spacing */
+            padding-left: 0.35em;
         }
 
         #app:active .radha-title {
             transform: scale(0.96);
         }
 
-        /* ===== COUNTERS ===== */
         .counters {
             display: flex;
             gap: 5vmin;
@@ -142,7 +138,6 @@
             text-shadow: 0 0 16px #ffb300, 0 0 34px #ff8f00;
         }
 
-        /* digit roll animation */
         .count-value.roll {
             animation: digitRoll 0.28s cubic-bezier(0.3, 1.4, 0.6, 1);
         }
@@ -153,7 +148,6 @@
             100% { transform: translateY(0);   opacity: 1; }
         }
 
-        /* ===== TAP HINT ===== */
         .tap-hint {
             position: absolute;
             bottom: 16vmin;
@@ -174,7 +168,6 @@
             50% { opacity: 0.9; }
         }
 
-        /* ===== SETTINGS BUTTON ===== */
         .settings-btn {
             position: fixed;
             top: max(18px, env(safe-area-inset-top));
@@ -201,7 +194,6 @@
             background: rgba(30, 80, 30, 0.9);
         }
 
-        /* ===== SETTINGS PANEL ===== */
         .settings-overlay {
             position: fixed;
             inset: 0;
@@ -285,7 +277,6 @@
             letter-spacing: 0.04em;
         }
 
-        /* toggle switch */
         .switch {
             position: relative;
             width: 58px;
@@ -328,7 +319,6 @@
             background: #ffffff;
         }
 
-        /* action buttons */
         .settings-actions {
             display: flex;
             gap: 12px;
@@ -371,7 +361,6 @@
             opacity: 0.7;
         }
 
-        /* ===== TAP RIPPLE ===== */
         .ripple {
             position: fixed;
             border-radius: 50%;
@@ -391,7 +380,6 @@
 </head>
 <body>
 
-<!-- FULL SCREEN TAP AREA -->
 <div id="app" aria-label="Tap anywhere to count Radha naam">
     <div class="radha-title">RADHA</div>
 
@@ -409,13 +397,10 @@
     <div class="tap-hint">Tap anywhere</div>
 </div>
 
-<!-- SETTINGS BUTTON -->
 <button class="settings-btn" id="settingsBtn" aria-label="Open settings">⚙</button>
 
-<!-- SETTINGS OVERLAY -->
 <div class="settings-overlay" id="settingsOverlay"></div>
 
-<!-- SETTINGS PANEL -->
 <div class="settings-panel" id="settingsPanel" role="dialog" aria-modal="true" aria-label="Settings">
     <div class="settings-handle"></div>
     <div class="settings-title">Settings</div>
@@ -454,6 +439,14 @@
     (function() {
         'use strict';
 
+        // ============================================================
+        //  LOCALSTORAGE KEYS
+        // ============================================================
+        const LS_TOTAL   = 'radha_total_v1';
+        const LS_SESSION = 'radha_session_v1';
+        const LS_SOUND   = 'radha_sound_v1';
+        const LS_VIBE    = 'radha_vibe_v1';
+
         // ---------- DOM ----------
         const app            = document.getElementById('app');
         const totalCountEl   = document.getElementById('totalCount');
@@ -466,47 +459,64 @@
         const resetSessionBtn= document.getElementById('resetSessionBtn');
         const resetAllBtn    = document.getElementById('resetAllBtn');
 
-        // ---------- STATE ----------
-        let total   = 0;
-        let session = 0;
-        let soundOn = true;
-        let vibeOn  = true;
+        // ============================================================
+        //  STATE — load from localStorage so it survives back/close
+        // ============================================================
+        let total   = parseInt(localStorage.getItem(LS_TOTAL), 10);
+        let session = parseInt(localStorage.getItem(LS_SESSION), 10);
+        let soundOn = localStorage.getItem(LS_SOUND) !== '0'; // default true
+        let vibeOn  = localStorage.getItem(LS_VIBE)  !== '0'; // default true
 
-        // ---------- FORMAT: 01, 02 ... ----------
+        if (isNaN(total))   total   = 0;
+        if (isNaN(session)) session = 0;
+
+        // Apply saved switch states to UI
+        soundSwitch.checked = soundOn;
+        vibeSwitch.checked  = vibeOn;
+
+        // ---------- SAVE HELPERS ----------
+        function saveAll() {
+            try {
+                localStorage.setItem(LS_TOTAL,   String(total));
+                localStorage.setItem(LS_SESSION, String(session));
+            } catch (e) { /* storage full / private mode — ignore */ }
+        }
+        function saveSettings() {
+            try {
+                localStorage.setItem(LS_SOUND, soundOn ? '1' : '0');
+                localStorage.setItem(LS_VIBE,  vibeOn  ? '1' : '0');
+            } catch (e) {}
+        }
+
+        // ---------- FORMAT 01 / 02 ----------
         function fmt(n) {
             return n < 10 ? '0' + n : '' + n;
         }
 
-        // ---------- ANIMATED COUNT UPDATE ----------
-        // Rolls the digit, then shows the new value. Classic odometer effect.
+        // ---------- ANIMATED COUNT ----------
         function animateCount(el, newValue) {
             const target = fmt(newValue);
-            // If the value is unchanged, do nothing
             if (el.textContent === target) return;
 
             el.classList.remove('roll');
-            // force reflow to restart animation
             void el.offsetWidth;
             el.classList.add('roll');
 
-            // halfway through the animation, swap the text
             setTimeout(() => {
                 el.textContent = target;
             }, 110);
 
-            // cleanup class after animation
             setTimeout(() => {
                 el.classList.remove('roll');
             }, 300);
         }
 
-        // ---------- RENDER COUNTERS ----------
         function renderCounters() {
             animateCount(totalCountEl, total);
             animateCount(sessionCountEl, session);
         }
 
-        // ---------- AUDIO (lazy, gesture-initiated) ----------
+        // ---------- AUDIO ----------
         let audioCtx = null;
 
         function ensureAudio() {
@@ -534,7 +544,6 @@
             master.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
             master.connect(ctx.destination);
 
-            // "Ra" - soft C5
             const o1 = ctx.createOscillator();
             const g1 = ctx.createGain();
             o1.type = 'sine';
@@ -545,7 +554,6 @@
             o1.start(now);
             o1.stop(now + 0.55);
 
-            // "dha" - fifth above
             const o2 = ctx.createOscillator();
             const g2 = ctx.createGain();
             o2.type = 'sine';
@@ -557,7 +565,6 @@
             o2.start(now + 0.06);
             o2.stop(now + 0.7);
 
-            // sparkle
             const o3 = ctx.createOscillator();
             const g3 = ctx.createGain();
             o3.type = 'triangle';
@@ -570,7 +577,7 @@
             o3.stop(now + 0.55);
         }
 
-        // ---------- VIBRATION (solid) ----------
+        // ---------- VIBRATION ----------
         function vibrate(pattern) {
             if (!vibeOn) return;
             if (navigator.vibrate) {
@@ -591,18 +598,16 @@
             setTimeout(() => r.remove(), 600);
         }
 
-        // ---------- MAIN TAP HANDLER ----------
+        // ---------- MAIN TAP ----------
         let lastTap = 0;
 
         function handleTap(e) {
-            // Don't count taps on UI controls
             if (e.target.closest('.settings-btn') ||
                 e.target.closest('.settings-panel') ||
                 e.target.closest('.settings-overlay')) {
                 return;
             }
 
-            // Prevent ghost double-fire on some mobile browsers
             const now = Date.now();
             if (now - lastTap < 40) return;
             lastTap = now;
@@ -612,13 +617,16 @@
             session += 1;
             renderCounters();
 
-            // 2) Vibrate — solid pattern (works on most Android; iOS ignores)
+            // 2) SAVE immediately — so back/close won't lose it
+            saveAll();
+
+            // 3) Vibrate
             vibrate([35, 25, 35]);
 
-            // 3) Sound
+            // 4) Sound
             playRadhaChime();
 
-            // 4) Visual ripple
+            // 5) Ripple
             let x = window.innerWidth / 2;
             let y = window.innerHeight / 2;
             if (e.touches && e.touches[0]) {
@@ -631,16 +639,14 @@
             spawnRipple(x, y);
         }
 
-        // Listen on the whole app container (full screen)
         app.addEventListener('pointerdown', handleTap, { passive: true });
 
-        // Fallback for browsers without PointerEvent
         if (!window.PointerEvent) {
             app.addEventListener('touchstart', handleTap, { passive: true });
             app.addEventListener('mousedown', handleTap);
         }
 
-        // ---------- SETTINGS PANEL ----------
+        // ---------- SETTINGS ----------
         function openSettings() {
             settingsPanel.classList.add('open');
             settingsOverlay.classList.add('open');
@@ -655,27 +661,26 @@
             openSettings();
         });
         settingsOverlay.addEventListener('click', closeSettings);
-
-        // Prevent taps inside the panel from counting
         settingsPanel.addEventListener('pointerdown', (e) => e.stopPropagation());
 
-        // ---------- SWITCHES ----------
         soundSwitch.addEventListener('change', () => {
             soundOn = soundSwitch.checked;
-            // resume audio context on enabling
+            saveSettings();
             if (soundOn) ensureAudio();
             vibrate(12);
         });
 
         vibeSwitch.addEventListener('change', () => {
             vibeOn = vibeSwitch.checked;
-            if (vibeOn) navigator.vibrate && navigator.vibrate(20);
+            saveSettings();
+            if (vibeOn && navigator.vibrate) navigator.vibrate(20);
         });
 
         // ---------- RESET ----------
         resetSessionBtn.addEventListener('click', () => {
             session = 0;
             animateCount(sessionCountEl, session);
+            saveAll();          // persist session = 0
             vibrate([20, 30, 20]);
         });
 
@@ -684,21 +689,25 @@
             session = 0;
             animateCount(totalCountEl, total);
             animateCount(sessionCountEl, session);
+            saveAll();          // persist both = 0
             vibrate([30, 40, 30, 40, 30]);
         });
 
-        // ---------- INIT ----------
-        // Set initial display as "00"
-        totalCountEl.textContent = '00';
-        sessionCountEl.textContent = '00';
+        // ---------- INITIAL RENDER ----------
+        // Show saved values immediately (no animation on load)
+        totalCountEl.textContent   = fmt(total);
+        sessionCountEl.textContent = fmt(session);
 
-        // Prevent double-tap zoom / long-press menu on the whole screen
+        // Also save once, just in case keys didn't exist yet
+        saveAll();
+        saveSettings();
+
+        // ---------- MISC ----------
         document.addEventListener('gesturestart', (e) => e.preventDefault());
         document.addEventListener('contextmenu', (e) => {
             if (e.target.closest('#app')) e.preventDefault();
         });
 
-        // Unlock audio on first gesture anywhere
         const unlock = () => {
             ensureAudio();
             document.removeEventListener('touchstart', unlock);
@@ -706,6 +715,13 @@
         };
         document.addEventListener('touchstart', unlock, { once: true, passive: true });
         document.addEventListener('mousedown', unlock, { once: true });
+
+        // Extra safety: save on page hide / unload
+        window.addEventListener('pagehide', saveAll);
+        window.addEventListener('beforeunload', saveAll);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') saveAll();
+        });
 
     })();
 </script>
