@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#0b2b0d">
-    <title>Radha Naam · Tap Counter</title>
+    <title>Radha Naam · Multi Counter</title>
     <style>
         * {
             margin: 0;
@@ -45,9 +45,6 @@
             --app-bg-3: rgba(5, 18, 6, 0.99);
         }
 
-        /* ============================================================
-           APP
-           ============================================================ */
         #app {
             position: fixed;
             inset: 0;
@@ -57,10 +54,7 @@
                 var(--app-bg-3) 100%);
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
             overflow: hidden;
-            cursor: pointer;
             z-index: 1;
             transition: background 0.5s ease;
         }
@@ -96,13 +90,329 @@
             50% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
         }
 
-        /* ============================================================
-           RADHA TITLE
-           ============================================================ */
-        .radha-title {
-            font-size: clamp(2rem, 8.5vmin, 3.6rem);
+        .view {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s ease;
+            will-change: transform, opacity;
+        }
+
+        #dashboardView {
+            z-index: 2;
+            transform: translateX(0);
+            opacity: 1;
+        }
+        #dashboardView.hidden {
+            transform: translateX(-30%);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #counterView {
+            z-index: 3;
+            transform: translateX(100%);
+            opacity: 0;
+            pointer-events: none;
+        }
+        #counterView.active {
+            transform: translateX(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .dash-header {
+            padding: max(20px, env(safe-area-inset-top)) 20px 12px;
+            position: relative;
+            z-index: 5;
+            text-align: center;
+        }
+        .dash-title {
+            font-size: clamp(1.4rem, 5.5vmin, 2rem);
             font-weight: 900;
-            letter-spacing: 0.35em;
+            letter-spacing: 0.28em;
+            color: var(--text-main);
+            text-shadow:
+                0 0 10px var(--accent-soft),
+                0 0 26px var(--accent),
+                0 0 50px var(--accent-strong);
+            padding-left: 0.28em;
+        }
+        .dash-subtitle {
+            margin-top: 6px;
+            color: var(--text-sub);
+            font-size: 0.68rem;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            opacity: 0.85;
+        }
+
+        .dash-actions {
+            position: absolute;
+            top: max(18px, env(safe-area-inset-top));
+            right: 18px;
+            display: flex;
+            gap: 8px;
+            z-index: 10;
+        }
+        .icon-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 1px solid rgba(150, 240, 150, 0.45);
+            background: rgba(10, 40, 12, 0.75);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: #d4ffd4;
+            font-size: 1.15rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55), inset 0 1px 2px rgba(255,255,255,0.12);
+            transition: transform 0.15s ease, background 0.2s ease;
+        }
+        .icon-btn:active {
+            transform: scale(0.9);
+            background: rgba(30, 80, 30, 0.9);
+        }
+
+        .counter-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px calc(90px + env(safe-area-inset-bottom));
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
+            z-index: 5;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(150,220,150,0.4) transparent;
+        }
+        .counter-list::-webkit-scrollbar { width: 6px; }
+        .counter-list::-webkit-scrollbar-thumb { background: rgba(150,220,150,0.4); border-radius: 3px; }
+
+        .counter-card {
+            background: var(--box-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--box-border);
+            border-radius: 22px;
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            cursor: pointer;
+            box-shadow:
+                inset 0 2px 14px rgba(0, 0, 0, 0.55),
+                0 10px 24px rgba(0, 0, 0, 0.45);
+            transition: transform 0.12s ease, border-color 0.2s;
+            animation: cardIn 0.35s ease both;
+        }
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .counter-card:active {
+            transform: scale(0.98);
+            border-color: var(--accent-soft);
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.3);
+        }
+
+        .card-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .card-name {
+            color: var(--text-main);
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 4px;
+        }
+        .card-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 0.68rem;
+            color: var(--text-sub);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .card-meta span {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .card-meta strong {
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+        }
+        .card-target {
+            font-size: 0.68rem;
+            color: var(--accent-soft);
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+        .card-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .card-menu-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid rgba(150, 220, 150, 0.3);
+            background: rgba(0, 25, 0, 0.5);
+            color: var(--accent-soft);
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+        }
+        .card-menu-btn:active {
+            transform: scale(0.9);
+            background: rgba(30, 80, 30, 0.8);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-sub);
+            opacity: 0.8;
+        }
+        .empty-state .big-emoji {
+            font-size: 3rem;
+            margin-bottom: 12px;
+            opacity: 0.6;
+        }
+        .empty-state .msg {
+            font-size: 0.85rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .empty-state .submsg {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            letter-spacing: 0.06em;
+        }
+
+        .fab-add {
+            position: fixed;
+            bottom: calc(24px + env(safe-area-inset-bottom));
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            padding: 16px 32px;
+            border-radius: 40px;
+            border: 1px solid #7cb342;
+            background: linear-gradient(180deg, #43a047, #2e7d32);
+            color: #f1f9f1;
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow:
+                0 6px 0 #0a2a0c,
+                0 12px 28px rgba(0, 0, 0, 0.5),
+                inset 0 1px 2px rgba(255,255,255,0.3);
+            transition: transform 0.1s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .fab-add:active {
+            transform: translateX(-50%) translateY(5px);
+            box-shadow:
+                0 1px 0 #0a2a0c,
+                0 6px 18px rgba(0, 0, 0, 0.5);
+        }
+
+        .counter-header {
+            padding: max(16px, env(safe-area-inset-top)) 16px 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            z-index: 5;
+        }
+        .back-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 1px solid rgba(150, 240, 150, 0.45);
+            background: rgba(10, 40, 12, 0.75);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: #d4ffd4;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55), inset 0 1px 2px rgba(255,255,255,0.12);
+            transition: transform 0.15s ease, background 0.2s ease;
+            flex-shrink: 0;
+        }
+        .back-btn:active {
+            transform: scale(0.9);
+            background: rgba(30, 80, 30, 0.9);
+        }
+        .counter-name-display {
+            flex: 1;
+            color: var(--text-main);
+            font-size: clamp(1rem, 4vmin, 1.4rem);
+            font-weight: 800;
+            letter-spacing: 0.15em;
+            text-align: center;
+            text-shadow:
+                0 0 10px var(--accent-soft),
+                0 0 24px var(--accent);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0 4px;
+        }
+
+        .counter-tap-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            padding: 16px;
+            position: relative;
+            z-index: 5;
+        }
+
+        .counter-title {
+            font-size: clamp(2rem, 9vmin, 3.6rem);
+            font-weight: 900;
+            letter-spacing: 0.3em;
             color: var(--text-main);
             text-shadow:
                 0 0 10px var(--accent-soft),
@@ -111,28 +421,24 @@
                 0 0 90px var(--bg-2);
             margin-bottom: 4vmin;
             transform: scale(1);
-            transition: transform 0.12s ease, color 0.5s ease, text-shadow 0.5s ease;
-            position: relative;
-            z-index: 5;
-            padding-left: 0.35em;
+            transition: transform 0.12s ease;
+            padding-left: 0.3em;
             text-align: center;
+            word-break: break-word;
+            max-width: 90vw;
         }
-        #app:active .radha-title {
+        .counter-tap-area:active .counter-title {
             transform: scale(0.96);
         }
 
-        /* ============================================================
-           COUNTERS
-           ============================================================ */
         .counters {
             display: flex;
             gap: 3.5vmin;
             justify-content: center;
             align-items: stretch;
-            position: relative;
-            z-index: 5;
             flex-wrap: wrap;
             max-width: 96vw;
+            position: relative;
         }
 
         .count-box {
@@ -146,9 +452,7 @@
             text-align: center;
             box-shadow:
                 inset 0 2px 14px rgba(0, 0, 0, 0.55),
-                0 10px 24px rgba(0, 0, 0, 0.45),
-                0 0 0 1px rgba(160, 255, 160, 0.08);
-            transition: background 0.5s ease, border-color 0.5s ease;
+                0 10px 24px rgba(0, 0, 0, 0.45);
         }
 
         .count-label {
@@ -159,7 +463,6 @@
             font-weight: 600;
             margin-bottom: 1.2vmin;
             text-shadow: 0 1px 3px rgba(0,0,0,0.6);
-            transition: color 0.5s ease;
         }
 
         .count-value {
@@ -170,7 +473,6 @@
             line-height: 1;
             font-variant-numeric: tabular-nums;
             display: inline-block;
-            transition: color 0.5s ease, text-shadow 0.5s ease;
         }
 
         .session-value {
@@ -217,9 +519,9 @@
             100% { transform: translateY(0);   opacity: 1; }
         }
 
-        .tap-hint {
+        .counter-tap-hint {
             position: absolute;
-            bottom: 8vmin;
+            bottom: 6vmin;
             left: 0;
             right: 0;
             text-align: center;
@@ -228,52 +530,18 @@
             letter-spacing: 0.3em;
             text-transform: uppercase;
             opacity: 0.75;
-            z-index: 5;
             pointer-events: none;
             animation: hintBlink 3s ease-in-out infinite;
-            transition: color 0.5s ease;
         }
         @keyframes hintBlink {
             0%, 100% { opacity: 0.4; }
             50% { opacity: 0.9; }
         }
 
-        /* ============================================================
-           SETTINGS BUTTON
-           ============================================================ */
-        .settings-btn {
-            position: fixed;
-            top: max(18px, env(safe-area-inset-top));
-            right: max(18px, env(safe-area-inset-right));
-            z-index: 50;
-            width: 52px;
-            height: 52px;
-            border-radius: 50%;
-            border: 1px solid rgba(150, 240, 150, 0.45);
-            background: rgba(10, 40, 12, 0.75);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            color: #d4ffd4;
-            font-size: 1.4rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55), inset 0 1px 2px rgba(255,255,255,0.12);
-            transition: transform 0.15s ease, background 0.2s ease;
-        }
-        .settings-btn:active {
-            transform: scale(0.9);
-            background: rgba(30, 80, 30, 0.9);
-        }
-
-        /* ============================================================
-           SETTINGS PANEL
-           ============================================================ */
-        .settings-overlay {
+        .overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.65);
             backdrop-filter: blur(6px);
             -webkit-backdrop-filter: blur(6px);
             z-index: 100;
@@ -281,12 +549,12 @@
             pointer-events: none;
             transition: opacity 0.25s ease;
         }
-        .settings-overlay.open {
+        .overlay.open {
             opacity: 1;
             pointer-events: auto;
         }
 
-        .settings-panel {
+        .sheet {
             position: fixed;
             left: 50%;
             bottom: 0;
@@ -302,25 +570,24 @@
             box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(150, 255, 150, 0.2);
             border: 1px solid var(--box-border);
             border-bottom: none;
-            transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), background 0.5s ease;
+            transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
             scrollbar-width: thin;
             scrollbar-color: rgba(150,220,150,0.4) transparent;
         }
-        .settings-panel::-webkit-scrollbar { width: 6px; }
-        .settings-panel::-webkit-scrollbar-thumb { background: rgba(150,220,150,0.4); border-radius: 3px; }
-        .settings-panel.open {
+        .sheet::-webkit-scrollbar { width: 6px; }
+        .sheet::-webkit-scrollbar-thumb { background: rgba(150,220,150,0.4); border-radius: 3px; }
+        .sheet.open {
             transform: translate(-50%, 0);
         }
 
-        .settings-handle {
+        .sheet-handle {
             width: 44px;
             height: 5px;
             border-radius: 4px;
             background: rgba(150, 220, 150, 0.4);
             margin: 0 auto 20px;
         }
-
-        .settings-title {
+        .sheet-title {
             color: #e8f5e9;
             font-size: 1.05rem;
             font-weight: 700;
@@ -343,31 +610,34 @@
         }
         .section-label:first-of-type { margin-top: 0; }
 
-        /* ---------- target input ---------- */
-        .target-input-row {
+        .form-input {
+            width: 100%;
+            background: rgba(0, 25, 0, 0.65);
+            border: 1px solid var(--box-border);
+            border-radius: 16px;
+            padding: 16px 18px;
+            color: #f1f9f1;
+            font-size: 1rem;
+            font-weight: 600;
+            outline: none;
+            transition: border-color 0.2s;
+            letter-spacing: 0.04em;
+        }
+        .form-input:focus {
+            border-color: #a5ffa5;
+            box-shadow: 0 0 12px rgba(120, 255, 140, 0.35);
+        }
+        .form-input::placeholder {
+            color: rgba(180, 220, 180, 0.5);
+            font-weight: 500;
+        }
+
+        .form-row {
             display: flex;
             gap: 10px;
             align-items: center;
         }
-        .target-input {
-            flex: 1;
-            background: rgba(0, 25, 0, 0.65);
-            border: 1px solid var(--box-border);
-            border-radius: 16px;
-            padding: 14px 16px;
-            color: #f1f9f1;
-            font-size: 1.05rem;
-            font-weight: 600;
-            font-variant-numeric: tabular-nums;
-            outline: none;
-            transition: border-color 0.2s;
-            letter-spacing: 0.08em;
-        }
-        .target-input:focus {
-            border-color: #a5ffa5;
-            box-shadow: 0 0 12px rgba(120, 255, 140, 0.35);
-        }
-        .target-set-btn {
+        .form-btn {
             background: linear-gradient(180deg, #43a047, #2e7d32);
             border: 1px solid #7cb342;
             color: #f1f9f1;
@@ -375,19 +645,42 @@
             font-weight: 700;
             letter-spacing: 0.12em;
             text-transform: uppercase;
-            padding: 14px 18px;
+            padding: 16px 20px;
             border-radius: 16px;
             cursor: pointer;
             box-shadow: 0 4px 0 #0a2a0c, 0 6px 14px rgba(0,0,0,0.4);
             transition: transform 0.1s ease;
             flex-shrink: 0;
         }
-        .target-set-btn:active {
+        .form-btn:active {
             transform: translateY(3px);
             box-shadow: 0 1px 0 #0a2a0c, 0 3px 8px rgba(0,0,0,0.5);
         }
 
-        /* ---------- theme grid ---------- */
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 8px;
+        }
+        .icon-opt {
+            aspect-ratio: 1;
+            border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.12);
+            background: rgba(0, 25, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.12s, border-color 0.2s, background 0.2s;
+        }
+        .icon-opt:active { transform: scale(0.92); }
+        .icon-opt.active {
+            border-color: #a5ffa5;
+            background: rgba(40, 100, 40, 0.6);
+            box-shadow: 0 0 12px rgba(120,255,140,0.5);
+        }
+
         .theme-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -421,7 +714,6 @@
             text-shadow: 0 2px 6px rgba(0,0,0,0.9);
         }
 
-        /* ---------- toggles ---------- */
         .toggle-list {
             display: flex;
             flex-direction: column;
@@ -447,7 +739,6 @@
             font-size: 0.7rem;
             letter-spacing: 0.03em;
         }
-
         .switch {
             position: relative;
             width: 54px;
@@ -486,7 +777,6 @@
             background: #ffffff;
         }
 
-        /* ---------- vibration intensity ---------- */
         .vibe-options {
             display: flex;
             gap: 8px;
@@ -515,8 +805,7 @@
             box-shadow: 0 0 14px rgba(120, 255, 140, 0.5);
         }
 
-        /* ---------- actions ---------- */
-        .settings-actions {
+        .action-buttons {
             display: flex;
             gap: 10px;
             margin-top: 22px;
@@ -532,29 +821,21 @@
             text-transform: uppercase;
             cursor: pointer;
             border: 1px solid rgba(130, 220, 130, 0.4);
-            transition: transform 0.1s ease, background 0.2s ease;
+            transition: transform 0.1s ease;
         }
         .action-btn:active { transform: scale(0.96); }
-        .action-btn.reset-session {
+        .action-btn.primary {
             background: linear-gradient(180deg, #2e7d32, #1b5e20);
             color: #f1f9f1;
             box-shadow: 0 4px 0 #0a2a0c, 0 6px 14px rgba(0,0,0,0.4);
         }
-        .action-btn.reset-all {
+        .action-btn.danger {
             background: rgba(80, 30, 30, 0.55);
             color: #ffcccc;
             border-color: rgba(230, 120, 120, 0.4);
             box-shadow: 0 4px 0 #3d0f0f, 0 6px 14px rgba(0,0,0,0.4);
         }
-        .action-btn.export-btn {
-            background: rgba(20, 50, 80, 0.55);
-            color: #cce4ff;
-            border-color: rgba(120, 180, 230, 0.4);
-            box-shadow: 0 4px 0 #0a1a2a, 0 6px 14px rgba(0,0,0,0.4);
-        }
-        .action-btn.full-width {
-            flex: 1 1 100%;
-        }
+        .action-btn.full { flex: 1 1 100%; }
 
         .close-hint {
             text-align: center;
@@ -566,35 +847,9 @@
             opacity: 0.7;
         }
 
-        /* ---------- info readout ---------- */
-        .info-readout {
-            display: flex;
-            justify-content: space-between;
-            background: rgba(0, 25, 0, 0.45);
-            border: 1px solid rgba(130, 220, 130, 0.25);
-            border-radius: 16px;
-            padding: 12px 16px;
-            margin-bottom: 4px;
-        }
-        .info-item { display: flex; flex-direction: column; gap: 2px; }
-        .info-item-label {
-            color: #9ccc9c;
-            font-size: 0.62rem;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            font-weight: 600;
-        }
-        .info-item-value {
-            color: #e8f5e9;
-            font-size: 0.95rem;
-            font-weight: 700;
-            font-variant-numeric: tabular-nums;
-        }
-
-        /* ---------- toast ---------- */
         .toast {
             position: fixed;
-            bottom: 40px;
+            bottom: 100px;
             left: 50%;
             transform: translateX(-50%) translateY(80px);
             background: rgba(20, 60, 20, 0.95);
@@ -611,13 +866,14 @@
             transition: transform 0.3s ease, opacity 0.3s ease;
             pointer-events: none;
             white-space: nowrap;
+            max-width: 90vw;
+            text-align: center;
         }
         .toast.show {
             transform: translateX(-50%) translateY(0);
             opacity: 1;
         }
 
-        /* ---------- ripple ---------- */
         .ripple {
             position: fixed;
             border-radius: 50%;
@@ -634,81 +890,242 @@
             }
         }
 
-        @media (max-height: 640px) {
-            .radha-title { margin-bottom: 3vmin; font-size: clamp(1.6rem, 7vmin, 2.6rem); }
-            .count-box { padding: 1.8vmin 3vmin; border-radius: 20px; }
-            .count-value { font-size: clamp(1.7rem, 6.5vmin, 2.6rem); }
-            .tap-hint { bottom: 4vmin; }
+        .confirm-dialog {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 150;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            padding: 20px;
         }
+        .confirm-dialog.open {
+            pointer-events: auto;
+            opacity: 1;
+        }
+        .confirm-box {
+            background: linear-gradient(180deg, var(--panel-bg-1), var(--panel-bg-2));
+            border: 1px solid var(--box-border);
+            border-radius: 24px;
+            padding: 24px;
+            max-width: 340px;
+            width: 100%;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            transform: scale(0.9);
+            transition: transform 0.2s ease;
+        }
+        .confirm-dialog.open .confirm-box {
+            transform: scale(1);
+        }
+        .confirm-title {
+            color: #e8f5e9;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .confirm-msg {
+            color: var(--text-sub);
+            font-size: 0.82rem;
+            text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+        .confirm-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Tab row inside options sheet */
+        .tab-row {
+            display: flex;
+            gap: 4px;
+            background: rgba(0, 25, 0, 0.5);
+            padding: 4px;
+            border-radius: 16px;
+            margin-bottom: 18px;
+            border: 1px solid rgba(130, 220, 130, 0.25);
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px 8px;
+            border-radius: 12px;
+            background: transparent;
+            border: none;
+            color: var(--text-sub);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .tab-btn.active {
+            background: linear-gradient(180deg, #43a047, #2e7d32);
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(80, 220, 100, 0.4);
+        }
+        .tab-btn:active { transform: scale(0.97); }
+
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
         @media (max-width: 360px) {
             .counters { gap: 2.5vmin; }
             .count-box { min-width: 25vmin; padding: 2vmin 3vmin; }
+            .icon-grid { grid-template-columns: repeat(6, 1fr); }
+        }
+        @media (max-height: 640px) {
+            .counter-title { margin-bottom: 3vmin; font-size: clamp(1.6rem, 7vmin, 2.6rem); }
+            .count-box { padding: 1.8vmin 3vmin; border-radius: 20px; }
+            .count-value { font-size: clamp(1.7rem, 6.5vmin, 2.6rem); }
         }
     </style>
 </head>
 <body>
 
-<div id="app" aria-label="Tap anywhere to count Radha naam">
-    <div class="radha-title">RADHA</div>
+<div id="app">
 
-    <div class="counters">
-        <div class="count-box target-box" id="targetBox">
-            <div class="count-label">Remaining</div>
-            <div class="count-value target-remaining" id="remainingCount">--</div>
-            <div class="target-total" id="targetTotalLabel">Target: —</div>
+    <div id="dashboardView" class="view">
+        <div class="dash-header">
+            <div class="dash-title">RADHA</div>
+            <div class="dash-subtitle" id="dashSubtitle">Your Counters</div>
         </div>
 
-        <div class="count-box">
-            <div class="count-label">Session</div>
-            <div class="count-value session-value" id="sessionCount">00</div>
+        <div class="dash-actions">
+            <button class="icon-btn" id="settingsBtn" aria-label="Open settings">⚙</button>
         </div>
 
-        <div class="count-box">
-            <div class="count-label">Total</div>
-            <div class="count-value" id="totalCount">00</div>
+        <div class="counter-list" id="counterList"></div>
+
+        <button class="fab-add" id="addCounterBtn">
+            <span style="font-size:1.2rem">＋</span> Add Counter
+        </button>
+    </div>
+
+    <div id="counterView" class="view">
+        <div class="counter-header">
+            <button class="back-btn" id="backBtn" aria-label="Back to dashboard">←</button>
+            <div class="counter-name-display" id="activeCounterName">—</div>
+            <button class="icon-btn" id="counterSettingsBtn" aria-label="Counter options">⋮</button>
+        </div>
+
+        <div class="counter-tap-area" id="counterTapArea">
+            <div class="counter-title" id="activeCounterTitle">RADHA</div>
+
+            <div class="counters">
+                <div class="count-box target-box" id="targetBox">
+                    <div class="count-label">Remaining</div>
+                    <div class="count-value target-remaining" id="remainingCount">--</div>
+                    <div class="target-total" id="targetTotalLabel">Target: —</div>
+                </div>
+
+                <div class="count-box">
+                    <div class="count-label">Session</div>
+                    <div class="count-value session-value" id="sessionCount">00</div>
+                </div>
+
+                <div class="count-box">
+                    <div class="count-label">Total</div>
+                    <div class="count-value" id="totalCount">00</div>
+                </div>
+            </div>
+
+            <div class="counter-tap-hint">Tap anywhere</div>
         </div>
     </div>
 
-    <div class="tap-hint">Tap anywhere</div>
 </div>
 
-<button class="settings-btn" id="settingsBtn" aria-label="Open settings">⚙</button>
+<!-- ADD COUNTER SHEET -->
+<div class="overlay" id="addOverlay"></div>
+<div class="sheet" id="addSheet" role="dialog" aria-modal="true" aria-label="Add counter">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="addSheetTitle">New Counter</div>
 
-<div class="settings-overlay" id="settingsOverlay"></div>
+    <div class="section-label">Counter Name</div>
+    <input type="text" class="form-input" id="newCounterName" placeholder="e.g. Radha Naam, Hare Krishna..." maxlength="40">
 
-<div class="settings-panel" id="settingsPanel" role="dialog" aria-modal="true" aria-label="Settings">
-    <div class="settings-handle"></div>
-    <div class="settings-title">Settings</div>
+    <div class="section-label">Icon</div>
+    <div class="icon-grid" id="iconGrid"></div>
 
-    <!-- ===== INFO READOUT ===== -->
-    <div class="info-readout">
-        <div class="info-item">
-            <span class="info-item-label">Total</span>
-            <span class="info-item-value" id="infoTotal">0</span>
-        </div>
-        <div class="info-item">
-            <span class="info-item-label">Session</span>
-            <span class="info-item-value" id="infoSession">0</span>
-        </div>
-        <div class="info-item">
-            <span class="info-item-label">Goal</span>
-            <span class="info-item-value" id="infoGoal">—</span>
-        </div>
-    </div>
-
-    <!-- ===== TARGET ===== -->
-    <div class="section-label">Target Count</div>
-    <div class="target-input-row">
-        <input type="number" class="target-input" id="targetInput" placeholder="e.g. 108" min="1" inputmode="numeric">
-        <button class="target-set-btn" id="setTargetBtn">Set</button>
-    </div>
-
-    <!-- ===== THEME ===== -->
     <div class="section-label">Theme</div>
+    <div class="theme-grid" id="newThemeGrid"></div>
+
+    <div class="section-label">Target (optional)</div>
+    <input type="number" class="form-input" id="newCounterTarget" placeholder="e.g. 108 (leave blank for no target)" min="1" inputmode="numeric">
+
+    <div class="action-buttons">
+        <button class="action-btn primary full" id="saveNewCounterBtn">Create Counter</button>
+    </div>
+
+    <div class="close-hint">Tap outside to cancel</div>
+</div>
+
+<!-- COUNTER OPTIONS SHEET -->
+<div class="overlay" id="optionsOverlay"></div>
+<div class="sheet" id="optionsSheet" role="dialog" aria-modal="true" aria-label="Counter options">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Counter Options</div>
+
+    <!-- Tabs -->
+    <div class="tab-row">
+        <button class="tab-btn active" data-tab="general">General</button>
+        <button class="tab-btn" data-tab="appearance">Appearance</button>
+        <button class="tab-btn" data-tab="actions">Actions</button>
+    </div>
+
+    <!-- GENERAL TAB -->
+    <div class="tab-pane active" data-pane="general">
+        <div class="section-label">Edit Name</div>
+        <div class="form-row">
+            <input type="text" class="form-input" id="editCounterName" placeholder="Counter name" maxlength="40">
+            <button class="form-btn" id="saveRenameBtn">Save</button>
+        </div>
+
+        <div class="section-label">Set Target</div>
+        <div class="form-row">
+            <input type="number" class="form-input" id="editCounterTarget" placeholder="Target (0 = clear)" min="0" inputmode="numeric">
+            <button class="form-btn" id="saveTargetBtn">Set</button>
+        </div>
+    </div>
+
+    <!-- APPEARANCE TAB -->
+    <div class="tab-pane" data-pane="appearance">
+        <div class="section-label">Icon</div>
+        <div class="icon-grid" id="editIconGrid"></div>
+
+        <div class="section-label">Theme</div>
+        <div class="theme-grid" id="editThemeGrid"></div>
+    </div>
+
+    <!-- ACTIONS TAB -->
+    <div class="tab-pane" data-pane="actions">
+        <div class="action-buttons">
+            <button class="action-btn primary" id="resetSessionBtn">Reset Session</button>
+            <button class="action-btn danger" id="resetAllBtn">Reset All</button>
+            <button class="action-btn danger full" id="deleteCounterBtn">🗑 Delete This Counter</button>
+        </div>
+    </div>
+
+    <div class="close-hint">Tap outside to close</div>
+</div>
+
+<!-- GLOBAL SETTINGS SHEET -->
+<div class="overlay" id="settingsOverlay"></div>
+<div class="sheet" id="settingsSheet" role="dialog" aria-modal="true" aria-label="Settings">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Settings</div>
+
+    <div class="section-label">Default Theme (for new counters)</div>
     <div class="theme-grid" id="themeGrid"></div>
 
-    <!-- ===== PREFERENCES ===== -->
-    <div class="section-label">Preferences</div>
+    <div class="section-label">Vibration</div>
     <div class="toggle-list">
         <div class="toggle-row">
             <div class="toggle-info">
@@ -720,6 +1137,17 @@
                 <span class="slider"></span>
             </label>
         </div>
+    </div>
+
+    <div class="section-label">Vibration Intensity</div>
+    <div class="vibe-options" id="vibeOptions">
+        <div class="vibe-chip" data-vibe="light">Light</div>
+        <div class="vibe-chip active" data-vibe="medium">Medium</div>
+        <div class="vibe-chip" data-vibe="strong">Strong</div>
+    </div>
+
+    <div class="section-label">Behavior</div>
+    <div class="toggle-list">
         <div class="toggle-row">
             <div class="toggle-info">
                 <span class="toggle-name">Ripple Effect</span>
@@ -742,11 +1170,11 @@
         </div>
         <div class="toggle-row">
             <div class="toggle-info">
-                <span class="toggle-name">Full-Screen Tap</span>
-                <span class="toggle-desc">Tap anywhere on screen to count</span>
+                <span class="toggle-name">Tap Guard</span>
+                <span class="toggle-desc">Ignore very fast accidental taps</span>
             </div>
             <label class="switch">
-                <input type="checkbox" id="fullscreenSwitch" checked>
+                <input type="checkbox" id="guardSwitch" checked>
                 <span class="slider"></span>
             </label>
         </div>
@@ -762,22 +1190,19 @@
         </div>
     </div>
 
-    <!-- ===== VIBRATION INTENSITY ===== -->
-    <div class="section-label">Vibration Intensity</div>
-    <div class="vibe-options" id="vibeOptions">
-        <div class="vibe-chip" data-vibe="light">Light</div>
-        <div class="vibe-chip active" data-vibe="medium">Medium</div>
-        <div class="vibe-chip" data-vibe="strong">Strong</div>
-    </div>
-
-    <!-- ===== ACTIONS ===== -->
-    <div class="settings-actions">
-        <button class="action-btn reset-session" id="resetSessionBtn">Reset Session</button>
-        <button class="action-btn reset-all" id="resetAllBtn">Reset All</button>
-        <button class="action-btn export-btn full-width" id="exportBtn">📋 Copy Stats to Clipboard</button>
-    </div>
-
     <div class="close-hint">Tap outside to close</div>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div class="confirm-dialog" id="confirmDialog">
+    <div class="confirm-box">
+        <div class="confirm-title" id="confirmTitle">Confirm</div>
+        <div class="confirm-msg" id="confirmMsg">Are you sure?</div>
+        <div class="confirm-actions">
+            <button class="action-btn primary" id="confirmCancelBtn">Cancel</button>
+            <button class="action-btn danger" id="confirmOkBtn">Confirm</button>
+        </div>
+    </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -786,351 +1211,178 @@
     (function() {
         'use strict';
 
-        // ============================================================
-        //  STORAGE KEYS
-        // ============================================================
-        const LS_TOTAL        = 'radha_total_v5';
-        const LS_TARGET       = 'radha_target_v5';
-        const LS_THEME        = 'radha_theme_v5';
-        const LS_VIBE         = 'radha_vibe_v5';
-        const LS_RIPPLE       = 'radha_ripple_v5';
-        const LS_ANIM         = 'radha_anim_v5';
-        const LS_FULLSCREEN   = 'radha_fullscreen_v5';
-        const LS_WAKE         = 'radha_wake_v5';
-        const LS_VIBE_INTENS  = 'radha_vibe_intens_v5';
+        const LS_COUNTERS       = 'radha_counters_v8';
+        const LS_DEFAULT_THEME  = 'radha_default_theme_v8';
+        const LS_VIBE           = 'radha_vibe_v8';
+        const LS_RIPPLE         = 'radha_ripple_v8';
+        const LS_ANIM           = 'radha_anim_v8';
+        const LS_GUARD          = 'radha_guard_v8';
+        const LS_WAKE           = 'radha_wake_v8';
+        const LS_VIBE_INTENS    = 'radha_vibe_intens_v8';
 
         // ============================================================
-        //  16 THEMES
+        //  THEMES (16)
         // ============================================================
         const THEMES = {
-            forest: {
-                name: 'Forest',
-                vars: {
-                    '--bg-1': '#1f4a21', '--bg-2': '#0b2b0d', '--bg-3': '#051206',
-                    '--glow-1': 'rgba(80, 220, 100, 0.12)', '--glow-2': 'rgba(140, 255, 160, 0.08)',
-                    '--accent': '#66bb6a', '--accent-soft': '#b9f6ca', '--accent-strong': '#4caf50',
-                    '--box-bg': 'rgba(0, 30, 5, 0.55)', '--box-border': 'rgba(130, 230, 130, 0.35)',
-                    '--text-main': '#f1f9f1', '--text-sub': '#aed581',
-                    '--session-color': '#ffe082', '--session-glow': '#ffb300',
-                    '--panel-bg-1': '#103611', '--panel-bg-2': '#0a240b',
-                    '--app-bg-1': 'rgba(31, 74, 33, 0.92)', '--app-bg-2': 'rgba(11, 43, 13, 0.96)', '--app-bg-3': 'rgba(5, 18, 6, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #2e7d32, #0b2b0d)'
-            },
-            ocean: {
-                name: 'Ocean',
-                vars: {
-                    '--bg-1': '#0d3b4a', '--bg-2': '#06232e', '--bg-3': '#021016',
-                    '--glow-1': 'rgba(80, 200, 220, 0.12)', '--glow-2': 'rgba(140, 240, 255, 0.08)',
-                    '--accent': '#4fc3f7', '--accent-soft': '#b3e5fc', '--accent-strong': '#0288d1',
-                    '--box-bg': 'rgba(0, 25, 40, 0.6)', '--box-border': 'rgba(100, 200, 240, 0.35)',
-                    '--text-main': '#e1f5fe', '--text-sub': '#81d4fa',
-                    '--session-color': '#b2ff59', '--session-glow': '#76ff03',
-                    '--panel-bg-1': '#0a2a35', '--panel-bg-2': '#051a22',
-                    '--app-bg-1': 'rgba(13, 59, 74, 0.92)', '--app-bg-2': 'rgba(6, 35, 46, 0.96)', '--app-bg-3': 'rgba(2, 16, 22, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #0288d1, #021016)'
-            },
-            saffron: {
-                name: 'Saffron',
-                vars: {
-                    '--bg-1': '#5a2a08', '--bg-2': '#2a1204', '--bg-3': '#120701',
-                    '--glow-1': 'rgba(255, 180, 60, 0.14)', '--glow-2': 'rgba(255, 220, 120, 0.09)',
-                    '--accent': '#ffb74d', '--accent-soft': '#ffe0b2', '--accent-strong': '#f57c00',
-                    '--box-bg': 'rgba(40, 15, 0, 0.6)', '--box-border': 'rgba(255, 180, 80, 0.4)',
-                    '--text-main': '#fff3e0', '--text-sub': '#ffcc80',
-                    '--session-color': '#ffeb3b', '--session-glow': '#ffc107',
-                    '--panel-bg-1': '#3a1806', '--panel-bg-2': '#1f0c02',
-                    '--app-bg-1': 'rgba(90, 42, 8, 0.92)', '--app-bg-2': 'rgba(42, 18, 4, 0.96)', '--app-bg-3': 'rgba(18, 7, 1, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #f57c00, #120701)'
-            },
-            royal: {
-                name: 'Royal',
-                vars: {
-                    '--bg-1': '#2a0d4a', '--bg-2': '#150626', '--bg-3': '#0a0213',
-                    '--glow-1': 'rgba(180, 120, 255, 0.12)', '--glow-2': 'rgba(220, 180, 255, 0.08)',
-                    '--accent': '#b388ff', '--accent-soft': '#e1d4ff', '--accent-strong': '#7c4dff',
-                    '--box-bg': 'rgba(20, 5, 35, 0.6)', '--box-border': 'rgba(180, 130, 255, 0.4)',
-                    '--text-main': '#f3e5f5', '--text-sub': '#d1c4e9',
-                    '--session-color': '#ffd54f', '--session-glow': '#ffb300',
-                    '--panel-bg-1': '#1e0a33', '--panel-bg-2': '#0f041a',
-                    '--app-bg-1': 'rgba(42, 13, 74, 0.92)', '--app-bg-2': 'rgba(21, 6, 38, 0.96)', '--app-bg-3': 'rgba(10, 2, 19, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #7c4dff, #0a0213)'
-            },
-            rose: {
-                name: 'Rose',
-                vars: {
-                    '--bg-1': '#4a0d2a', '--bg-2': '#260615', '--bg-3': '#12020a',
-                    '--glow-1': 'rgba(255, 120, 180, 0.12)', '--glow-2': 'rgba(255, 180, 220, 0.08)',
-                    '--accent': '#f06292', '--accent-soft': '#ffd1e0', '--accent-strong': '#c2185b',
-                    '--box-bg': 'rgba(35, 5, 20, 0.6)', '--box-border': 'rgba(240, 130, 180, 0.4)',
-                    '--text-main': '#fce4ec', '--text-sub': '#f8bbd0',
-                    '--session-color': '#80deea', '--session-glow': '#26c6da',
-                    '--panel-bg-1': '#33101f', '--panel-bg-2': '#1a0810',
-                    '--app-bg-1': 'rgba(74, 13, 42, 0.92)', '--app-bg-2': 'rgba(38, 6, 21, 0.96)', '--app-bg-3': 'rgba(18, 2, 10, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #c2185b, #12020a)'
-            },
-            twilight: {
-                name: 'Twilight',
-                vars: {
-                    '--bg-1': '#2a2a4a', '--bg-2': '#141428', '--bg-3': '#080814',
-                    '--glow-1': 'rgba(150, 150, 255, 0.12)', '--glow-2': 'rgba(200, 200, 255, 0.08)',
-                    '--accent': '#7986cb', '--accent-soft': '#c5cae9', '--accent-strong': '#3f51b5',
-                    '--box-bg': 'rgba(15, 15, 35, 0.6)', '--box-border': 'rgba(150, 150, 240, 0.4)',
-                    '--text-main': '#e8eaf6', '--text-sub': '#9fa8da',
-                    '--session-color': '#ffd54f', '--session-glow': '#ffb300',
-                    '--panel-bg-1': '#1e1e38', '--panel-bg-2': '#0f0f1f',
-                    '--app-bg-1': 'rgba(42, 42, 74, 0.92)', '--app-bg-2': 'rgba(20, 20, 40, 0.96)', '--app-bg-3': 'rgba(8, 8, 20, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #3f51b5, #080814)'
-            },
-            mono: {
-                name: 'Mono',
-                vars: {
-                    '--bg-1': '#2a2a2a', '--bg-2': '#141414', '--bg-3': '#080808',
-                    '--glow-1': 'rgba(200, 200, 200, 0.1)', '--glow-2': 'rgba(240, 240, 240, 0.06)',
-                    '--accent': '#bdbdbd', '--accent-soft': '#eeeeee', '--accent-strong': '#9e9e9e',
-                    '--box-bg': 'rgba(20, 20, 20, 0.6)', '--box-border': 'rgba(200, 200, 200, 0.3)',
-                    '--text-main': '#f5f5f5', '--text-sub': '#bdbdbd',
-                    '--session-color': '#ffcc80', '--session-glow': '#ff9800',
-                    '--panel-bg-1': '#1f1f1f', '--panel-bg-2': '#0f0f0f',
-                    '--app-bg-1': 'rgba(42, 42, 42, 0.92)', '--app-bg-2': 'rgba(20, 20, 20, 0.96)', '--app-bg-3': 'rgba(8, 8, 8, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #757575, #080808)'
-            },
-            maroon: {
-                name: 'Maroon',
-                vars: {
-                    '--bg-1': '#4a1a1a', '--bg-2': '#260b0b', '--bg-3': '#120404',
-                    '--glow-1': 'rgba(255, 130, 130, 0.12)', '--glow-2': 'rgba(255, 180, 180, 0.08)',
-                    '--accent': '#e57373', '--accent-soft': '#ffcdd2', '--accent-strong': '#c62828',
-                    '--box-bg': 'rgba(35, 8, 8, 0.6)', '--box-border': 'rgba(230, 130, 130, 0.4)',
-                    '--text-main': '#ffebee', '--text-sub': '#ef9a9a',
-                    '--session-color': '#ffe082', '--session-glow': '#ffb300',
-                    '--panel-bg-1': '#331010', '--panel-bg-2': '#1a0808',
-                    '--app-bg-1': 'rgba(74, 26, 26, 0.92)', '--app-bg-2': 'rgba(38, 11, 11, 0.96)', '--app-bg-3': 'rgba(18, 4, 4, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #c62828, #120404)'
-            },
-            emerald: {
-                name: 'Emerald',
-                vars: {
-                    '--bg-1': '#0d3b2a', '--bg-2': '#04201a', '--bg-3': '#01100c',
-                    '--glow-1': 'rgba(50, 230, 150, 0.12)', '--glow-2': 'rgba(100, 255, 200, 0.08)',
-                    '--accent': '#26a69a', '--accent-soft': '#b2dfdb', '--accent-strong': '#00897b',
-                    '--box-bg': 'rgba(0, 30, 20, 0.6)', '--box-border': 'rgba(80, 220, 180, 0.4)',
-                    '--text-main': '#e0f2f1', '--text-sub': '#80cbc4',
-                    '--session-color': '#ffeb3b', '--session-glow': '#ffc107',
-                    '--panel-bg-1': '#0a2a20', '--panel-bg-2': '#051a12',
-                    '--app-bg-1': 'rgba(13, 59, 42, 0.92)', '--app-bg-2': 'rgba(4, 32, 26, 0.96)', '--app-bg-3': 'rgba(1, 16, 12, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #00897b, #01100c)'
-            },
-            sunset: {
-                name: 'Sunset',
-                vars: {
-                    '--bg-1': '#4a1530', '--bg-2': '#260a1a', '--bg-3': '#12030a',
-                    '--glow-1': 'rgba(255, 140, 80, 0.14)', '--glow-2': 'rgba(255, 200, 120, 0.09)',
-                    '--accent': '#ff7043', '--accent-soft': '#ffccbc', '--accent-strong': '#e64a19',
-                    '--box-bg': 'rgba(35, 8, 20, 0.6)', '--box-border': 'rgba(255, 140, 100, 0.4)',
-                    '--text-main': '#fbe9e7', '--text-sub': '#ffab91',
-                    '--session-color': '#ffd54f', '--session-glow': '#ffb300',
-                    '--panel-bg-1': '#33101f', '--panel-bg-2': '#1a0810',
-                    '--app-bg-1': 'rgba(74, 21, 48, 0.92)', '--app-bg-2': 'rgba(38, 10, 26, 0.96)', '--app-bg-3': 'rgba(18, 3, 10, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #e64a19, #12030a)'
-            },
-            lavender: {
-                name: 'Lavender',
-                vars: {
-                    '--bg-1': '#3a2a5a', '--bg-2': '#1a1230', '--bg-3': '#0a0618',
-                    '--glow-1': 'rgba(200, 160, 255, 0.12)', '--glow-2': 'rgba(230, 200, 255, 0.08)',
-                    '--accent': '#ce93d8', '--accent-soft': '#f3e5f5', '--accent-strong': '#ab47bc',
-                    '--box-bg': 'rgba(25, 15, 40, 0.6)', '--box-border': 'rgba(200, 150, 240, 0.4)',
-                    '--text-main': '#f3e5f5', '--text-sub': '#e1bee7',
-                    '--session-color': '#b2ff59', '--session-glow': '#76ff03',
-                    '--panel-bg-1': '#2a1a40', '--panel-bg-2': '#150b20',
-                    '--app-bg-1': 'rgba(58, 42, 90, 0.92)', '--app-bg-2': 'rgba(26, 18, 48, 0.96)', '--app-bg-3': 'rgba(10, 6, 24, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #ab47bc, #0a0618)'
-            },
-            midnight: {
-                name: 'Midnight',
-                vars: {
-                    '--bg-1': '#0a1a2a', '--bg-2': '#040a14', '--bg-3': '#010408',
-                    '--glow-1': 'rgba(100, 180, 255, 0.12)', '--glow-2': 'rgba(150, 200, 255, 0.08)',
-                    '--accent': '#42a5f5', '--accent-soft': '#bbdefb', '--accent-strong': '#1565c0',
-                    '--box-bg': 'rgba(0, 15, 30, 0.6)', '--box-border': 'rgba(100, 180, 240, 0.4)',
-                    '--text-main': '#e3f2fd', '--text-sub': '#90caf9',
-                    '--session-color': '#ffab40', '--session-glow': '#ff6d00',
-                    '--panel-bg-1': '#0a1a30', '--panel-bg-2': '#040a18',
-                    '--app-bg-1': 'rgba(10, 26, 42, 0.92)', '--app-bg-2': 'rgba(4, 10, 20, 0.96)', '--app-bg-3': 'rgba(1, 4, 8, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #1565c0, #010408)'
-            },
-            crimson: {
-                name: 'Crimson',
-                vars: {
-                    '--bg-1': '#4a0a0a', '--bg-2': '#260404', '--bg-3': '#120101',
-                    '--glow-1': 'rgba(255, 80, 80, 0.14)', '--glow-2': 'rgba(255, 120, 120, 0.09)',
-                    '--accent': '#ef5350', '--accent-soft': '#ffcdd2', '--accent-strong': '#c62828',
-                    '--box-bg': 'rgba(35, 4, 4, 0.6)', '--box-border': 'rgba(255, 100, 100, 0.4)',
-                    '--text-main': '#ffebee', '--text-sub': '#ef9a9a',
-                    '--session-color': '#ffd54f', '--session-glow': '#ffb300',
-                    '--panel-bg-1': '#331010', '--panel-bg-2': '#1a0808',
-                    '--app-bg-1': 'rgba(74, 10, 10, 0.92)', '--app-bg-2': 'rgba(38, 4, 4, 0.96)', '--app-bg-3': 'rgba(18, 1, 1, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #c62828, #120101)'
-            },
-            teal: {
-                name: 'Teal',
-                vars: {
-                    '--bg-1': '#0a3a3a', '--bg-2': '#041a1a', '--bg-3': '#010808',
-                    '--glow-1': 'rgba(0, 200, 200, 0.12)', '--glow-2': 'rgba(100, 240, 240, 0.08)',
-                    '--accent': '#4dd0e1', '--accent-soft': '#b2ebf2', '--accent-strong': '#00acc1',
-                    '--box-bg': 'rgba(0, 25, 25, 0.6)', '--box-border': 'rgba(80, 220, 230, 0.4)',
-                    '--text-main': '#e0f7fa', '--text-sub': '#80deea',
-                    '--session-color': '#ffab40', '--session-glow': '#ff6d00',
-                    '--panel-bg-1': '#0a2a2a', '--panel-bg-2': '#051515',
-                    '--app-bg-1': 'rgba(10, 58, 58, 0.92)', '--app-bg-2': 'rgba(4, 26, 26, 0.96)', '--app-bg-3': 'rgba(1, 8, 8, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #00acc1, #010808)'
-            },
-            amber: {
-                name: 'Amber',
-                vars: {
-                    '--bg-1': '#4a3a08', '--bg-2': '#261e04', '--bg-3': '#120e01',
-                    '--glow-1': 'rgba(255, 200, 0, 0.14)', '--glow-2': 'rgba(255, 230, 100, 0.09)',
-                    '--accent': '#ffca28', '--accent-soft': '#fff8e1', '--accent-strong': '#ffa000',
-                    '--box-bg': 'rgba(35, 28, 4, 0.6)', '--box-border': 'rgba(255, 210, 80, 0.4)',
-                    '--text-main': '#fff8e1', '--text-sub': '#ffe082',
-                    '--session-color': '#80deea', '--session-glow': '#26c6da',
-                    '--panel-bg-1': '#332a08', '--panel-bg-2': '#1a1404',
-                    '--app-bg-1': 'rgba(74, 58, 8, 0.92)', '--app-bg-2': 'rgba(38, 30, 4, 0.96)', '--app-bg-3': 'rgba(18, 14, 1, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #ffa000, #120e01)'
-            },
-            slate: {
-                name: 'Slate',
-                vars: {
-                    '--bg-1': '#263238', '--bg-2': '#151c20', '--bg-3': '#0a0e10',
-                    '--glow-1': 'rgba(150, 180, 200, 0.1)', '--glow-2': 'rgba(190, 210, 230, 0.07)',
-                    '--accent': '#78909c', '--accent-soft': '#cfd8dc', '--accent-strong': '#546e7a',
-                    '--box-bg': 'rgba(20, 28, 32, 0.6)', '--box-border': 'rgba(150, 180, 200, 0.35)',
-                    '--text-main': '#eceff1', '--text-sub': '#b0bec5',
-                    '--session-color': '#ffcc80', '--session-glow': '#ff9800',
-                    '--panel-bg-1': '#1f2a30', '--panel-bg-2': '#0f1518',
-                    '--app-bg-1': 'rgba(38, 50, 56, 0.92)', '--app-bg-2': 'rgba(21, 28, 32, 0.96)', '--app-bg-3': 'rgba(10, 14, 16, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #546e7a, #0a0e10)'
-            },
-            plum: {
-                name: 'Plum',
-                vars: {
-                    '--bg-1': '#3a1a3a', '--bg-2': '#1a0a1a', '--bg-3': '#0a030a',
-                    '--glow-1': 'rgba(220, 130, 220, 0.12)', '--glow-2': 'rgba(240, 180, 240, 0.08)',
-                    '--accent': '#ba68c8', '--accent-soft': '#e1bee7', '--accent-strong': '#8e24aa',
-                    '--box-bg': 'rgba(25, 10, 25, 0.6)', '--box-border': 'rgba(200, 130, 200, 0.4)',
-                    '--text-main': '#f3e5f5', '--text-sub': '#ce93d8',
-                    '--session-color': '#80cbc4', '--session-glow': '#26a69a',
-                    '--panel-bg-1': '#2a142a', '--panel-bg-2': '#150a15',
-                    '--app-bg-1': 'rgba(58, 26, 58, 0.92)', '--app-bg-2': 'rgba(26, 10, 26, 0.96)', '--app-bg-3': 'rgba(10, 3, 10, 0.99)'
-                },
-                swatch: 'radial-gradient(circle at 30% 30%, #8e24aa, #0a030a)'
-            }
+            forest:   { name: 'Forest',   vars: { '--bg-1': '#1f4a21', '--bg-2': '#0b2b0d', '--bg-3': '#051206', '--glow-1': 'rgba(80, 220, 100, 0.12)', '--glow-2': 'rgba(140, 255, 160, 0.08)', '--accent': '#66bb6a', '--accent-soft': '#b9f6ca', '--accent-strong': '#4caf50', '--box-bg': 'rgba(0, 30, 5, 0.55)', '--box-border': 'rgba(130, 230, 130, 0.35)', '--text-main': '#f1f9f1', '--text-sub': '#aed581', '--session-color': '#ffe082', '--session-glow': '#ffb300', '--panel-bg-1': '#103611', '--panel-bg-2': '#0a240b', '--app-bg-1': 'rgba(31, 74, 33, 0.92)', '--app-bg-2': 'rgba(11, 43, 13, 0.96)', '--app-bg-3': 'rgba(5, 18, 6, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #2e7d32, #0b2b0d)' },
+            ocean:    { name: 'Ocean',    vars: { '--bg-1': '#0d3b4a', '--bg-2': '#06232e', '--bg-3': '#021016', '--glow-1': 'rgba(80, 200, 220, 0.12)', '--glow-2': 'rgba(140, 240, 255, 0.08)', '--accent': '#4fc3f7', '--accent-soft': '#b3e5fc', '--accent-strong': '#0288d1', '--box-bg': 'rgba(0, 25, 40, 0.6)', '--box-border': 'rgba(100, 200, 240, 0.35)', '--text-main': '#e1f5fe', '--text-sub': '#81d4fa', '--session-color': '#b2ff59', '--session-glow': '#76ff03', '--panel-bg-1': '#0a2a35', '--panel-bg-2': '#051a22', '--app-bg-1': 'rgba(13, 59, 74, 0.92)', '--app-bg-2': 'rgba(6, 35, 46, 0.96)', '--app-bg-3': 'rgba(2, 16, 22, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #0288d1, #021016)' },
+            saffron:  { name: 'Saffron',  vars: { '--bg-1': '#5a2a08', '--bg-2': '#2a1204', '--bg-3': '#120701', '--glow-1': 'rgba(255, 180, 60, 0.14)', '--glow-2': 'rgba(255, 220, 120, 0.09)', '--accent': '#ffb74d', '--accent-soft': '#ffe0b2', '--accent-strong': '#f57c00', '--box-bg': 'rgba(40, 15, 0, 0.6)', '--box-border': 'rgba(255, 180, 80, 0.4)', '--text-main': '#fff3e0', '--text-sub': '#ffcc80', '--session-color': '#ffeb3b', '--session-glow': '#ffc107', '--panel-bg-1': '#3a1806', '--panel-bg-2': '#1f0c02', '--app-bg-1': 'rgba(90, 42, 8, 0.92)', '--app-bg-2': 'rgba(42, 18, 4, 0.96)', '--app-bg-3': 'rgba(18, 7, 1, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #f57c00, #120701)' },
+            royal:    { name: 'Royal',    vars: { '--bg-1': '#2a0d4a', '--bg-2': '#150626', '--bg-3': '#0a0213', '--glow-1': 'rgba(180, 120, 255, 0.12)', '--glow-2': 'rgba(220, 180, 255, 0.08)', '--accent': '#b388ff', '--accent-soft': '#e1d4ff', '--accent-strong': '#7c4dff', '--box-bg': 'rgba(20, 5, 35, 0.6)', '--box-border': 'rgba(180, 130, 255, 0.4)', '--text-main': '#f3e5f5', '--text-sub': '#d1c4e9', '--session-color': '#ffd54f', '--session-glow': '#ffb300', '--panel-bg-1': '#1e0a33', '--panel-bg-2': '#0f041a', '--app-bg-1': 'rgba(42, 13, 74, 0.92)', '--app-bg-2': 'rgba(21, 6, 38, 0.96)', '--app-bg-3': 'rgba(10, 2, 19, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #7c4dff, #0a0213)' },
+            rose:     { name: 'Rose',     vars: { '--bg-1': '#4a0d2a', '--bg-2': '#260615', '--bg-3': '#12020a', '--glow-1': 'rgba(255, 120, 180, 0.12)', '--glow-2': 'rgba(255, 180, 220, 0.08)', '--accent': '#f06292', '--accent-soft': '#ffd1e0', '--accent-strong': '#c2185b', '--box-bg': 'rgba(35, 5, 20, 0.6)', '--box-border': 'rgba(240, 130, 180, 0.4)', '--text-main': '#fce4ec', '--text-sub': '#f8bbd0', '--session-color': '#80deea', '--session-glow': '#26c6da', '--panel-bg-1': '#33101f', '--panel-bg-2': '#1a0810', '--app-bg-1': 'rgba(74, 13, 42, 0.92)', '--app-bg-2': 'rgba(38, 6, 21, 0.96)', '--app-bg-3': 'rgba(18, 2, 10, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #c2185b, #12020a)' },
+            twilight: { name: 'Twilight', vars: { '--bg-1': '#2a2a4a', '--bg-2': '#141428', '--bg-3': '#080814', '--glow-1': 'rgba(150, 150, 255, 0.12)', '--glow-2': 'rgba(200, 200, 255, 0.08)', '--accent': '#7986cb', '--accent-soft': '#c5cae9', '--accent-strong': '#3f51b5', '--box-bg': 'rgba(15, 15, 35, 0.6)', '--box-border': 'rgba(150, 150, 240, 0.4)', '--text-main': '#e8eaf6', '--text-sub': '#9fa8da', '--session-color': '#ffd54f', '--session-glow': '#ffb300', '--panel-bg-1': '#1e1e38', '--panel-bg-2': '#0f0f1f', '--app-bg-1': 'rgba(42, 42, 74, 0.92)', '--app-bg-2': 'rgba(20, 20, 40, 0.96)', '--app-bg-3': 'rgba(8, 8, 20, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #3f51b5, #080814)' },
+            mono:     { name: 'Mono',     vars: { '--bg-1': '#2a2a2a', '--bg-2': '#141414', '--bg-3': '#080808', '--glow-1': 'rgba(200, 200, 200, 0.1)', '--glow-2': 'rgba(240, 240, 240, 0.06)', '--accent': '#bdbdbd', '--accent-soft': '#eeeeee', '--accent-strong': '#9e9e9e', '--box-bg': 'rgba(20, 20, 20, 0.6)', '--box-border': 'rgba(200, 200, 200, 0.3)', '--text-main': '#f5f5f5', '--text-sub': '#bdbdbd', '--session-color': '#ffcc80', '--session-glow': '#ff9800', '--panel-bg-1': '#1f1f1f', '--panel-bg-2': '#0f0f0f', '--app-bg-1': 'rgba(42, 42, 42, 0.92)', '--app-bg-2': 'rgba(20, 20, 20, 0.96)', '--app-bg-3': 'rgba(8, 8, 8, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #757575, #080808)' },
+            maroon:   { name: 'Maroon',   vars: { '--bg-1': '#4a1a1a', '--bg-2': '#260b0b', '--bg-3': '#120404', '--glow-1': 'rgba(255, 130, 130, 0.12)', '--glow-2': 'rgba(255, 180, 180, 0.08)', '--accent': '#e57373', '--accent-soft': '#ffcdd2', '--accent-strong': '#c62828', '--box-bg': 'rgba(35, 8, 8, 0.6)', '--box-border': 'rgba(230, 130, 130, 0.4)', '--text-main': '#ffebee', '--text-sub': '#ef9a9a', '--session-color': '#ffe082', '--session-glow': '#ffb300', '--panel-bg-1': '#331010', '--panel-bg-2': '#1a0808', '--app-bg-1': 'rgba(74, 26, 26, 0.92)', '--app-bg-2': 'rgba(38, 11, 11, 0.96)', '--app-bg-3': 'rgba(18, 4, 4, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #c62828, #120404)' },
+            emerald:  { name: 'Emerald',  vars: { '--bg-1': '#0d3b2a', '--bg-2': '#04201a', '--bg-3': '#01100c', '--glow-1': 'rgba(50, 230, 150, 0.12)', '--glow-2': 'rgba(100, 255, 200, 0.08)', '--accent': '#26a69a', '--accent-soft': '#b2dfdb', '--accent-strong': '#00897b', '--box-bg': 'rgba(0, 30, 20, 0.6)', '--box-border': 'rgba(80, 220, 180, 0.4)', '--text-main': '#e0f2f1', '--text-sub': '#80cbc4', '--session-color': '#ffeb3b', '--session-glow': '#ffc107', '--panel-bg-1': '#0a2a20', '--panel-bg-2': '#051a12', '--app-bg-1': 'rgba(13, 59, 42, 0.92)', '--app-bg-2': 'rgba(4, 32, 26, 0.96)', '--app-bg-3': 'rgba(1, 16, 12, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #00897b, #01100c)' },
+            sunset:   { name: 'Sunset',   vars: { '--bg-1': '#4a1530', '--bg-2': '#260a1a', '--bg-3': '#12030a', '--glow-1': 'rgba(255, 140, 80, 0.14)', '--glow-2': 'rgba(255, 200, 120, 0.09)', '--accent': '#ff7043', '--accent-soft': '#ffccbc', '--accent-strong': '#e64a19', '--box-bg': 'rgba(35, 8, 20, 0.6)', '--box-border': 'rgba(255, 140, 100, 0.4)', '--text-main': '#fbe9e7', '--text-sub': '#ffab91', '--session-color': '#ffd54f', '--session-glow': '#ffb300', '--panel-bg-1': '#33101f', '--panel-bg-2': '#1a0810', '--app-bg-1': 'rgba(74, 21, 48, 0.92)', '--app-bg-2': 'rgba(38, 10, 26, 0.96)', '--app-bg-3': 'rgba(18, 3, 10, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #e64a19, #12030a)' },
+            lavender: { name: 'Lavender', vars: { '--bg-1': '#3a2a5a', '--bg-2': '#1a1230', '--bg-3': '#0a0618', '--glow-1': 'rgba(200, 160, 255, 0.12)', '--glow-2': 'rgba(230, 200, 255, 0.08)', '--accent': '#ce93d8', '--accent-soft': '#f3e5f5', '--accent-strong': '#ab47bc', '--box-bg': 'rgba(25, 15, 40, 0.6)', '--box-border': 'rgba(200, 150, 240, 0.4)', '--text-main': '#f3e5f5', '--text-sub': '#e1bee7', '--session-color': '#b2ff59', '--session-glow': '#76ff03', '--panel-bg-1': '#2a1a40', '--panel-bg-2': '#150b20', '--app-bg-1': 'rgba(58, 42, 90, 0.92)', '--app-bg-2': 'rgba(26, 18, 48, 0.96)', '--app-bg-3': 'rgba(10, 6, 24, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #ab47bc, #0a0618)' },
+            midnight: { name: 'Midnight', vars: { '--bg-1': '#0a1a2a', '--bg-2': '#040a14', '--bg-3': '#010408', '--glow-1': 'rgba(100, 180, 255, 0.12)', '--glow-2': 'rgba(150, 200, 255, 0.08)', '--accent': '#42a5f5', '--accent-soft': '#bbdefb', '--accent-strong': '#1565c0', '--box-bg': 'rgba(0, 15, 30, 0.6)', '--box-border': 'rgba(100, 180, 240, 0.4)', '--text-main': '#e3f2fd', '--text-sub': '#90caf9', '--session-color': '#ffab40', '--session-glow': '#ff6d00', '--panel-bg-1': '#0a1a30', '--panel-bg-2': '#040a18', '--app-bg-1': 'rgba(10, 26, 42, 0.92)', '--app-bg-2': 'rgba(4, 10, 20, 0.96)', '--app-bg-3': 'rgba(1, 4, 8, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #1565c0, #010408)' },
+            crimson:  { name: 'Crimson',  vars: { '--bg-1': '#4a0a0a', '--bg-2': '#260404', '--bg-3': '#120101', '--glow-1': 'rgba(255, 80, 80, 0.14)', '--glow-2': 'rgba(255, 120, 120, 0.09)', '--accent': '#ef5350', '--accent-soft': '#ffcdd2', '--accent-strong': '#c62828', '--box-bg': 'rgba(35, 4, 4, 0.6)', '--box-border': 'rgba(255, 100, 100, 0.4)', '--text-main': '#ffebee', '--text-sub': '#ef9a9a', '--session-color': '#ffd54f', '--session-glow': '#ffb300', '--panel-bg-1': '#331010', '--panel-bg-2': '#1a0808', '--app-bg-1': 'rgba(74, 10, 10, 0.92)', '--app-bg-2': 'rgba(38, 4, 4, 0.96)', '--app-bg-3': 'rgba(18, 1, 1, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #c62828, #120101)' },
+            teal:     { name: 'Teal',     vars: { '--bg-1': '#0a3a3a', '--bg-2': '#041a1a', '--bg-3': '#010808', '--glow-1': 'rgba(0, 200, 200, 0.12)', '--glow-2': 'rgba(100, 240, 240, 0.08)', '--accent': '#4dd0e1', '--accent-soft': '#b2ebf2', '--accent-strong': '#00acc1', '--box-bg': 'rgba(0, 25, 25, 0.6)', '--box-border': 'rgba(80, 220, 230, 0.4)', '--text-main': '#e0f7fa', '--text-sub': '#80deea', '--session-color': '#ffab40', '--session-glow': '#ff6d00', '--panel-bg-1': '#0a2a2a', '--panel-bg-2': '#051515', '--app-bg-1': 'rgba(10, 58, 58, 0.92)', '--app-bg-2': 'rgba(4, 26, 26, 0.96)', '--app-bg-3': 'rgba(1, 8, 8, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #00acc1, #010808)' },
+            amber:    { name: 'Amber',    vars: { '--bg-1': '#4a3a08', '--bg-2': '#261e04', '--bg-3': '#120e01', '--glow-1': 'rgba(255, 200, 0, 0.14)', '--glow-2': 'rgba(255, 230, 100, 0.09)', '--accent': '#ffca28', '--accent-soft': '#fff8e1', '--accent-strong': '#ffa000', '--box-bg': 'rgba(35, 28, 4, 0.6)', '--box-border': 'rgba(255, 210, 80, 0.4)', '--text-main': '#fff8e1', '--text-sub': '#ffe082', '--session-color': '#80deea', '--session-glow': '#26c6da', '--panel-bg-1': '#332a08', '--panel-bg-2': '#1a1404', '--app-bg-1': 'rgba(74, 58, 8, 0.92)', '--app-bg-2': 'rgba(38, 30, 4, 0.96)', '--app-bg-3': 'rgba(18, 14, 1, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #ffa000, #120e01)' },
+            slate:    { name: 'Slate',    vars: { '--bg-1': '#263238', '--bg-2': '#151c20', '--bg-3': '#0a0e10', '--glow-1': 'rgba(150, 180, 200, 0.1)', '--glow-2': 'rgba(190, 210, 230, 0.07)', '--accent': '#78909c', '--accent-soft': '#cfd8dc', '--accent-strong': '#546e7a', '--box-bg': 'rgba(20, 28, 32, 0.6)', '--box-border': 'rgba(150, 180, 200, 0.35)', '--text-main': '#eceff1', '--text-sub': '#b0bec5', '--session-color': '#ffcc80', '--session-glow': '#ff9800', '--panel-bg-1': '#1f2a30', '--panel-bg-2': '#0f1518', '--app-bg-1': 'rgba(38, 50, 56, 0.92)', '--app-bg-2': 'rgba(21, 28, 32, 0.96)', '--app-bg-3': 'rgba(10, 14, 16, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #546e7a, #0a0e10)' },
+            plum:     { name: 'Plum',     vars: { '--bg-1': '#3a1a3a', '--bg-2': '#1a0a1a', '--bg-3': '#0a030a', '--glow-1': 'rgba(220, 130, 220, 0.12)', '--glow-2': 'rgba(240, 180, 240, 0.08)', '--accent': '#ba68c8', '--accent-soft': '#e1bee7', '--accent-strong': '#8e24aa', '--box-bg': 'rgba(25, 10, 25, 0.6)', '--box-border': 'rgba(200, 130, 200, 0.4)', '--text-main': '#f3e5f5', '--text-sub': '#ce93d8', '--session-color': '#80cbc4', '--session-glow': '#26a69a', '--panel-bg-1': '#2a142a', '--panel-bg-2': '#150a15', '--app-bg-1': 'rgba(58, 26, 58, 0.92)', '--app-bg-2': 'rgba(26, 10, 26, 0.96)', '--app-bg-3': 'rgba(10, 3, 10, 0.99)' }, swatch: 'radial-gradient(circle at 30% 30%, #8e24aa, #0a030a)' }
         };
 
-        // ============================================================
-        //  VIBRATION PATTERNS
-        // ============================================================
-        const VIBE_PATTERNS = {
-            light:  [15],
-            medium: [35, 25, 35],
-            strong: [60, 30, 60, 30, 60]
-        };
+        const VIBE_PATTERNS = { light: [15], medium: [35, 25, 35], strong: [60, 30, 60, 30, 60] };
+        const ICONS = ['🪷', '🙏', '🕉️', '📿', '🔱', '🦚', '🌺', '🌸', '💫', '🪔', '🎵', '✨', '☸️', '🌿', '🦋', '⭐'];
 
         // ============================================================
         //  DOM
         // ============================================================
-        const app             = document.getElementById('app');
-        const totalCountEl    = document.getElementById('totalCount');
-        const sessionCountEl  = document.getElementById('sessionCount');
-        const remainingCountEl= document.getElementById('remainingCount');
-        const targetTotalLabel= document.getElementById('targetTotalLabel');
-        const targetBox       = document.getElementById('targetBox');
-        const settingsBtn     = document.getElementById('settingsBtn');
-        const settingsPanel   = document.getElementById('settingsPanel');
-        const settingsOverlay = document.getElementById('settingsOverlay');
-        const targetInput     = document.getElementById('targetInput');
-        const setTargetBtn    = document.getElementById('setTargetBtn');
-        const themeGrid       = document.getElementById('themeGrid');
-        const resetSessionBtn = document.getElementById('resetSessionBtn');
-        const resetAllBtn     = document.getElementById('resetAllBtn');
-        const exportBtn       = document.getElementById('exportBtn');
-        const vibeSwitch      = document.getElementById('vibeSwitch');
-        const rippleSwitch    = document.getElementById('rippleSwitch');
-        const animSwitch      = document.getElementById('animSwitch');
-        const fullscreenSwitch= document.getElementById('fullscreenSwitch');
-        const wakeSwitch      = document.getElementById('wakeSwitch');
-        const vibeOptions     = document.getElementById('vibeOptions');
-        const infoTotal       = document.getElementById('infoTotal');
-        const infoSession     = document.getElementById('infoSession');
-        const infoGoal        = document.getElementById('infoGoal');
-        const toastEl         = document.getElementById('toast');
+        const dashboardView    = document.getElementById('dashboardView');
+        const counterView      = document.getElementById('counterView');
+        const counterList      = document.getElementById('counterList');
+        const dashSubtitle     = document.getElementById('dashSubtitle');
+        const addCounterBtn    = document.getElementById('addCounterBtn');
+        const settingsBtn      = document.getElementById('settingsBtn');
+        const backBtn          = document.getElementById('backBtn');
+        const counterSettingsBtn = document.getElementById('counterSettingsBtn');
+
+        const activeCounterName   = document.getElementById('activeCounterName');
+        const activeCounterTitle  = document.getElementById('activeCounterTitle');
+        const counterTapArea      = document.getElementById('counterTapArea');
+        const totalCountEl        = document.getElementById('totalCount');
+        const sessionCountEl      = document.getElementById('sessionCount');
+        const remainingCountEl    = document.getElementById('remainingCount');
+        const targetTotalLabel    = document.getElementById('targetTotalLabel');
+        const targetBox           = document.getElementById('targetBox');
+
+        const addOverlay      = document.getElementById('addOverlay');
+        const addSheet        = document.getElementById('addSheet');
+        const newCounterName  = document.getElementById('newCounterName');
+        const newCounterTarget= document.getElementById('newCounterTarget');
+        const iconGrid        = document.getElementById('iconGrid');
+        const newThemeGrid    = document.getElementById('newThemeGrid');
+        const saveNewCounterBtn = document.getElementById('saveNewCounterBtn');
+
+        const optionsOverlay   = document.getElementById('optionsOverlay');
+        const optionsSheet     = document.getElementById('optionsSheet');
+        const editCounterName  = document.getElementById('editCounterName');
+        const editCounterTarget= document.getElementById('editCounterTarget');
+        const editIconGrid     = document.getElementById('editIconGrid');
+        const editThemeGrid    = document.getElementById('editThemeGrid');
+        const saveRenameBtn    = document.getElementById('saveRenameBtn');
+        const saveTargetBtn    = document.getElementById('saveTargetBtn');
+        const resetSessionBtn  = document.getElementById('resetSessionBtn');
+        const resetAllBtn      = document.getElementById('resetAllBtn');
+        const deleteCounterBtn = document.getElementById('deleteCounterBtn');
+
+        const settingsOverlay  = document.getElementById('settingsOverlay');
+        const settingsSheet    = document.getElementById('settingsSheet');
+        const themeGrid        = document.getElementById('themeGrid');
+        const vibeSwitch       = document.getElementById('vibeSwitch');
+        const rippleSwitch     = document.getElementById('rippleSwitch');
+        const animSwitch       = document.getElementById('animSwitch');
+        const guardSwitch      = document.getElementById('guardSwitch');
+        const wakeSwitch       = document.getElementById('wakeSwitch');
+        const vibeOptions      = document.getElementById('vibeOptions');
+
+        const confirmDialog    = document.getElementById('confirmDialog');
+        const confirmTitle     = document.getElementById('confirmTitle');
+        const confirmMsg       = document.getElementById('confirmMsg');
+        const confirmOkBtn     = document.getElementById('confirmOkBtn');
+        const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+
+        const toastEl = document.getElementById('toast');
 
         // ============================================================
         //  STATE
         // ============================================================
-        let total    = parseInt(localStorage.getItem(LS_TOTAL), 10);
-        let session  = 0;
-        let target   = parseInt(localStorage.getItem(LS_TARGET), 10);
-        let themeKey = localStorage.getItem(LS_THEME) || 'forest';
+        let counters = [];
+        let activeId = null;
+        let defaultThemeKey = localStorage.getItem(LS_DEFAULT_THEME) || 'forest';
         let vibeOn   = localStorage.getItem(LS_VIBE) !== '0';
         let rippleOn = localStorage.getItem(LS_RIPPLE) !== '0';
         let animOn   = localStorage.getItem(LS_ANIM) !== '0';
-        let fullscreenOn = localStorage.getItem(LS_FULLSCREEN) !== '0';
+        let guardOn  = localStorage.getItem(LS_GUARD) !== '0';
         let wakeOn   = localStorage.getItem(LS_WAKE) !== '0';
         let vibeIntensity = localStorage.getItem(LS_VIBE_INTENS) || 'medium';
 
-        if (isNaN(total))  total  = 0;
-        if (isNaN(target)) target = 0;
-        if (!THEMES[themeKey]) themeKey = 'forest';
+        let selectedIcon = '🪷';
+        let selectedTheme = 'forest';
+        let editIcon = '🪷';
+        let editTheme = 'forest';
+        let editingCounterId = null;
+        let pendingConfirm = null;
+
+        if (!THEMES[defaultThemeKey]) defaultThemeKey = 'forest';
         if (!VIBE_PATTERNS[vibeIntensity]) vibeIntensity = 'medium';
 
-        // sync switches
-        vibeSwitch.checked       = vibeOn;
-        rippleSwitch.checked     = rippleOn;
-        animSwitch.checked       = animOn;
-        fullscreenSwitch.checked = fullscreenOn;
-        wakeSwitch.checked       = wakeOn;
+        // ============================================================
+        //  LOAD / SAVE
+        // ============================================================
+        function loadCounters() {
+            try {
+                const raw = localStorage.getItem(LS_COUNTERS);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) {
+                        counters = parsed.filter(c =>
+                            c && typeof c.id === 'string' && typeof c.name === 'string'
+                        ).map(c => ({
+                            id: c.id,
+                            name: c.name,
+                            icon: c.icon || '🪷',
+                            title: c.title || c.name.toUpperCase().slice(0, 20),
+                            theme: c.theme && THEMES[c.theme] ? c.theme : defaultThemeKey,
+                            total: Number(c.total) || 0,
+                            session: 0,
+                            target: Number(c.target) || 0
+                        }));
+                    }
+                }
+            } catch (e) { counters = []; }
+        }
+
+        function saveCounters() {
+            try {
+                const toStore = counters.map(c => ({
+                    id: c.id, name: c.name, icon: c.icon, title: c.title,
+                    theme: c.theme,
+                    total: c.total, target: c.target
+                }));
+                localStorage.setItem(LS_COUNTERS, JSON.stringify(toStore));
+            } catch (e) {}
+        }
+
+        function saveSettings() {
+            try {
+                localStorage.setItem(LS_DEFAULT_THEME, defaultThemeKey);
+                localStorage.setItem(LS_VIBE,        vibeOn ? '1' : '0');
+                localStorage.setItem(LS_RIPPLE,      rippleOn ? '1' : '0');
+                localStorage.setItem(LS_ANIM,        animOn ? '1' : '0');
+                localStorage.setItem(LS_GUARD,       guardOn ? '1' : '0');
+                localStorage.setItem(LS_WAKE,        wakeOn ? '1' : '0');
+                localStorage.setItem(LS_VIBE_INTENS, vibeIntensity);
+            } catch (e) {}
+        }
 
         // ============================================================
         //  HELPERS
         // ============================================================
         function fmt(n) { return n < 10 ? '0' + n : '' + n; }
-
-        function saveAll() {
-            try {
-                localStorage.setItem(LS_TOTAL,  String(total));
-                localStorage.setItem(LS_TARGET, String(target));
-            } catch (e) {}
-        }
-        function saveSettings() {
-            try {
-                localStorage.setItem(LS_VIBE,        vibeOn ? '1' : '0');
-                localStorage.setItem(LS_RIPPLE,      rippleOn ? '1' : '0');
-                localStorage.setItem(LS_ANIM,        animOn ? '1' : '0');
-                localStorage.setItem(LS_FULLSCREEN,  fullscreenOn ? '1' : '0');
-                localStorage.setItem(LS_WAKE,        wakeOn ? '1' : '0');
-                localStorage.setItem(LS_VIBE_INTENS, vibeIntensity);
-            } catch (e) {}
-        }
-        function saveTheme() {
-            try { localStorage.setItem(LS_THEME, themeKey); } catch (e) {}
-        }
+        function uid() { return 'c_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7); }
+        function getActive() { return counters.find(c => c.id === activeId) || null; }
 
         let toastTimer = null;
         function showToast(msg) {
@@ -1141,34 +1393,65 @@
         }
 
         // ============================================================
-        //  THEME APPLY
+        //  THEME APPLICATION
         // ============================================================
-        function applyTheme(key) {
+        // Apply a specific theme to the whole document
+        function applyThemeVars(key) {
             const theme = THEMES[key] || THEMES.forest;
             for (const [k, v] of Object.entries(theme.vars)) {
                 document.documentElement.style.setProperty(k, v);
             }
-            document.querySelectorAll('.theme-swatch').forEach(el => {
-                el.classList.toggle('active', el.dataset.theme === key);
-            });
-            themeKey = key;
-            saveTheme();
         }
 
-        function buildThemeGrid() {
-            themeGrid.innerHTML = '';
+        // Apply theme based on current context:
+        // - If a counter is active, use that counter's theme
+        // - Otherwise use default theme
+        function applyCurrentTheme() {
+            if (activeId) {
+                const c = getActive();
+                if (c && c.theme && THEMES[c.theme]) {
+                    applyThemeVars(c.theme);
+                    return;
+                }
+            }
+            applyThemeVars(defaultThemeKey);
+        }
+
+        function buildThemeGridFor(container, current, onSelect) {
+            container.innerHTML = '';
             Object.entries(THEMES).forEach(([key, theme]) => {
                 const sw = document.createElement('div');
                 sw.className = 'theme-swatch';
                 sw.dataset.theme = key;
                 sw.style.background = theme.swatch;
                 sw.title = theme.name;
-                if (key === themeKey) sw.classList.add('active');
+                if (key === current) sw.classList.add('active');
                 sw.addEventListener('click', () => {
-                    applyTheme(key);
+                    container.querySelectorAll('.theme-swatch').forEach(s => {
+                        s.classList.toggle('active', s.dataset.theme === key);
+                    });
                     vibrate(12);
+                    onSelect(key);
                 });
-                themeGrid.appendChild(sw);
+                container.appendChild(sw);
+            });
+        }
+
+        function buildIconGridFor(container, current, onSelect) {
+            container.innerHTML = '';
+            ICONS.forEach((icon) => {
+                const el = document.createElement('div');
+                el.className = 'icon-opt' + (icon === current ? ' active' : '');
+                el.textContent = icon;
+                el.dataset.icon = icon;
+                el.addEventListener('click', () => {
+                    container.querySelectorAll('.icon-opt').forEach(o => {
+                        o.classList.toggle('active', o.dataset.icon === icon);
+                    });
+                    vibrate(10);
+                    onSelect(icon);
+                });
+                container.appendChild(el);
             });
         }
 
@@ -1194,7 +1477,6 @@
                     vibeOptions.querySelectorAll('.vibe-chip').forEach(c => {
                         c.classList.toggle('active', c.dataset.vibe === vibeIntensity);
                     });
-                    // preview
                     vibrate();
                 });
             });
@@ -1207,9 +1489,7 @@
         async function requestWakeLock() {
             if (!wakeOn) return;
             if (!('wakeLock' in navigator)) return;
-            try {
-                wakeLock = await navigator.wakeLock.request('screen');
-            } catch (e) { /* ignore */ }
+            try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
         }
         async function releaseWakeLock() {
             if (wakeLock) {
@@ -1219,12 +1499,120 @@
         }
 
         // ============================================================
-        //  COUNTERS
+        //  RIPPLE
         // ============================================================
-        let remaining = 0;
+        function spawnRipple(x, y) {
+            if (!rippleOn) return;
+            const r = document.createElement('div');
+            r.className = 'ripple';
+            const size = Math.max(window.innerWidth, window.innerHeight) * 0.5;
+            r.style.width = size + 'px';
+            r.style.height = size + 'px';
+            r.style.left = x + 'px';
+            r.style.top = y + 'px';
+            document.body.appendChild(r);
+            setTimeout(() => r.remove(), 600);
+        }
 
-        function recompute() {
-            remaining = target > 0 ? Math.max(0, target - total) : 0;
+        // ============================================================
+        //  DASHBOARD RENDER
+        // ============================================================
+        function renderDashboard() {
+            counterList.innerHTML = '';
+            dashSubtitle.textContent = counters.length === 0
+                ? 'No counters yet'
+                : counters.length + (counters.length === 1 ? ' Counter' : ' Counters');
+
+            if (counters.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'empty-state';
+                empty.innerHTML = `
+                    <div class="big-emoji">🪷</div>
+                    <div class="msg">No counters yet</div>
+                    <div class="submsg">Tap "Add Counter" to create one</div>
+                `;
+                counterList.appendChild(empty);
+                return;
+            }
+
+            counters.forEach((c, idx) => {
+                const card = document.createElement('div');
+                card.className = 'counter-card';
+                card.style.animationDelay = (idx * 0.04) + 's';
+                card.dataset.id = c.id;
+
+                const remaining = c.target > 0 ? Math.max(0, c.target - c.total) : null;
+
+                // Apply counter's theme colors to card icon gradient via CSS variables
+                // We'll just use var(--accent-strong) etc which already reflects current theme
+                card.innerHTML = `
+                    <div class="card-icon" style="background: linear-gradient(135deg, ${THEMES[c.theme]?.vars['--accent-strong'] || '#4caf50'}, ${THEMES[c.theme]?.vars['--accent'] || '#66bb6a'});">${c.icon}</div>
+                    <div class="card-content">
+                        <div class="card-name">${escapeHtml(c.name)}</div>
+                        <div class="card-meta">
+                            <span>Total <strong>${c.total}</strong></span>
+                            <span>Session <strong>${c.session}</strong></span>
+                        </div>
+                        ${c.target > 0
+                            ? `<div class="card-target">🎯 Target ${c.target} · Remaining ${remaining}</div>`
+                            : ''
+                        }
+                    </div>
+                    <div class="card-actions">
+                        <button class="card-menu-btn" data-menu="${c.id}" aria-label="Options">⋮</button>
+                    </div>
+                `;
+
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('[data-menu]')) return;
+                    openCounter(c.id);
+                });
+
+                const menuBtn = card.querySelector('[data-menu]');
+                menuBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openOptionsFor(c.id);
+                });
+
+                counterList.appendChild(card);
+            });
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, ch => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[ch]));
+        }
+
+        // ============================================================
+        //  COUNTER VIEW RENDER
+        // ============================================================
+        function renderActiveCounter(animate) {
+            const c = getActive();
+            if (!c) return;
+
+            activeCounterName.textContent = c.name;
+            activeCounterTitle.textContent = c.title || 'RADHA';
+
+            const remaining = c.target > 0 ? Math.max(0, c.target - c.total) : null;
+
+            if (animate) {
+                animateCount(totalCountEl, c.total);
+                animateCount(sessionCountEl, c.session);
+                if (remaining !== null) animateCount(remainingCountEl, remaining);
+            } else {
+                totalCountEl.textContent   = fmt(c.total);
+                sessionCountEl.textContent = fmt(c.session);
+                remainingCountEl.textContent = remaining !== null ? fmt(remaining) : '--';
+            }
+
+            if (c.target > 0) {
+                targetTotalLabel.textContent = 'Target: ' + c.target;
+                targetBox.classList.toggle('reached', remaining === 0);
+            } else {
+                targetTotalLabel.textContent = 'Target: —';
+                targetBox.classList.remove('reached');
+            }
         }
 
         function animateCount(el, newValue) {
@@ -1241,81 +1629,71 @@
             setTimeout(() => { el.classList.remove('roll'); }, 300);
         }
 
-        function renderCounters(animate) {
-            if (animate) {
-                animateCount(totalCountEl, total);
-                animateCount(sessionCountEl, session);
-                animateCount(remainingCountEl, remaining);
-            } else {
-                totalCountEl.textContent     = fmt(total);
-                sessionCountEl.textContent   = fmt(session);
-                remainingCountEl.textContent = target > 0 ? fmt(remaining) : '--';
+        // ============================================================
+        //  OPEN / CLOSE VIEWS
+        // ============================================================
+        function openCounter(id) {
+            const c = counters.find(x => x.id === id);
+            if (!c) return;
+
+            c.session = 0;
+            activeId = id;
+
+            // Apply THIS counter's theme
+            applyCurrentTheme();
+            renderActiveCounter(false);
+            dashboardView.classList.add('hidden');
+            counterView.classList.add('active');
+
+            if (wakeOn) requestWakeLock();
+        }
+
+        function closeCounter() {
+            const c = getActive();
+            if (c) {
+                c.session = 0;
+                saveCounters();
             }
-            if (target > 0) {
-                targetTotalLabel.textContent = 'Target: ' + target;
-                targetBox.classList.toggle('reached', remaining === 0);
-            } else {
-                targetTotalLabel.textContent = 'Target: —';
-                targetBox.classList.remove('reached');
-            }
-            // info readout
-            infoTotal.textContent   = total;
-            infoSession.textContent = session;
-            infoGoal.textContent    = target > 0 ? target : '—';
+
+            activeId = null;
+
+            // Restore default theme
+            applyCurrentTheme();
+
+            counterView.classList.remove('active');
+            dashboardView.classList.remove('hidden');
+            renderDashboard();
+            closeAllSheets();
+        }
+
+        function closeAllSheets() {
+            addOverlay.classList.remove('open');
+            addSheet.classList.remove('open');
+            optionsOverlay.classList.remove('open');
+            optionsSheet.classList.remove('open');
+            settingsOverlay.classList.remove('open');
+            settingsSheet.classList.remove('open');
+            confirmDialog.classList.remove('open');
         }
 
         // ============================================================
-        //  RIPPLE
-        // ============================================================
-        function spawnRipple(x, y) {
-            if (!rippleOn) return;
-            const r = document.createElement('div');
-            r.className = 'ripple';
-            const size = Math.max(window.innerWidth, window.innerHeight) * 0.5;
-            r.style.width  = size + 'px';
-            r.style.height = size + 'px';
-            r.style.left = x + 'px';
-            r.style.top  = y + 'px';
-            document.body.appendChild(r);
-            setTimeout(() => r.remove(), 600);
-        }
-
-        // ============================================================
-        //  MAIN TAP
+        //  TAP HANDLER
         // ============================================================
         let lastTap = 0;
 
         function handleTap(e) {
-            if (e.target.closest('.settings-btn') ||
-                e.target.closest('.settings-panel') ||
-                e.target.closest('.settings-overlay') ||
-                e.target.closest('.toast')) {
-                return;
-            }
-
-            // if fullscreen tap is OFF, only count when tapping the center area
-            if (!fullscreenOn) {
-                const rect = app.getBoundingClientRect();
-                const cx = rect.left + rect.width / 2;
-                const cy = rect.top + rect.height / 2;
-                let px = e.clientX, py = e.clientY;
-                if (e.touches && e.touches[0]) {
-                    px = e.touches[0].clientX;
-                    py = e.touches[0].clientY;
-                }
-                const dist = Math.hypot(px - cx, py - cy);
-                if (dist > Math.min(rect.width, rect.height) * 0.35) return;
-            }
-
+            if (!activeId) return;
             const now = Date.now();
-            if (now - lastTap < 40) return;
+            if (guardOn && now - lastTap < 80) return;
             lastTap = now;
 
-            total += 1;
-            session += 1;
-            recompute();
-            renderCounters(true);
-            saveAll();
+            const c = getActive();
+            if (!c) return;
+
+            c.total += 1;
+            c.session += 1;
+            saveCounters();
+            renderActiveCounter(true);
             vibrate();
 
             let x = window.innerWidth / 2;
@@ -1330,143 +1708,304 @@
             spawnRipple(x, y);
         }
 
-        app.addEventListener('pointerdown', handleTap, { passive: true });
+        counterTapArea.addEventListener('pointerdown', handleTap, { passive: true });
         if (!window.PointerEvent) {
-            app.addEventListener('touchstart', handleTap, { passive: true });
-            app.addEventListener('mousedown', handleTap);
+            counterTapArea.addEventListener('touchstart', handleTap, { passive: true });
+            counterTapArea.addEventListener('mousedown', handleTap);
         }
 
         // ============================================================
-        //  SETTINGS OPEN/CLOSE
+        //  ADD COUNTER SHEET
+        // ============================================================
+        function openAddSheet() {
+            editingCounterId = null;
+            newCounterName.value = '';
+            newCounterTarget.value = '';
+            selectedIcon = '🪷';
+            selectedTheme = defaultThemeKey;
+
+            buildIconGridFor(iconGrid, selectedIcon, (icon) => { selectedIcon = icon; });
+            buildThemeGridFor(newThemeGrid, selectedTheme, (key) => { selectedTheme = key; });
+
+            addOverlay.classList.add('open');
+            addSheet.classList.add('open');
+            setTimeout(() => newCounterName.focus(), 300);
+        }
+
+        function saveNewCounter() {
+            const name = newCounterName.value.trim();
+            if (!name) {
+                showToast('Please enter a counter name');
+                newCounterName.focus();
+                return;
+            }
+            const target = Math.max(0, parseInt(newCounterTarget.value, 10) || 0);
+
+            counters.push({
+                id: uid(),
+                name: name,
+                icon: selectedIcon,
+                theme: selectedTheme,
+                title: name.toUpperCase().slice(0, 20),
+                total: 0,
+                session: 0,
+                target: target
+            });
+            saveCounters();
+            renderDashboard();
+            closeAllSheets();
+            vibrate(20);
+            showToast('Counter created');
+        }
+
+        saveNewCounterBtn.addEventListener('click', saveNewCounter);
+        newCounterName.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') saveNewCounter();
+        });
+
+        // ============================================================
+        //  OPTIONS SHEET
+        // ============================================================
+        function openOptionsFor(id) {
+            const c = counters.find(x => x.id === id);
+            if (!c) return;
+            editingCounterId = id;
+            editCounterName.value = c.name;
+            editCounterTarget.value = c.target > 0 ? c.target : '';
+            editIcon = c.icon || '🪷';
+            editTheme = c.theme || defaultThemeKey;
+
+            buildIconGridFor(editIconGrid, editIcon, (icon) => {
+                editIcon = icon;
+                // Apply immediately (live preview)
+                const cc = counters.find(x => x.id === editingCounterId);
+                if (cc) {
+                    cc.icon = icon;
+                    saveCounters();
+                    renderDashboard();
+                }
+                vibrate(10);
+            });
+
+            buildThemeGridFor(editThemeGrid, editTheme, (key) => {
+                editTheme = key;
+                // Apply immediately (live preview)
+                const cc = counters.find(x => x.id === editingCounterId);
+                if (cc) {
+                    cc.theme = key;
+                    saveCounters();
+                    // If this is the active counter, apply the theme now
+                    if (activeId === cc.id) {
+                        applyCurrentTheme();
+                    }
+                    renderDashboard();
+                }
+                vibrate(12);
+            });
+
+            // Reset to General tab
+            switchTab('general');
+
+            optionsOverlay.classList.add('open');
+            optionsSheet.classList.add('open');
+        }
+
+        function switchTab(tabName) {
+            optionsSheet.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tabName);
+            });
+            optionsSheet.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.toggle('active', pane.dataset.pane === tabName);
+            });
+        }
+
+        optionsSheet.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                switchTab(btn.dataset.tab);
+                vibrate(10);
+            });
+        });
+
+        saveRenameBtn.addEventListener('click', () => {
+            if (!editingCounterId) return;
+            const c = counters.find(x => x.id === editingCounterId);
+            if (!c) return;
+            const name = editCounterName.value.trim();
+            if (!name) { showToast('Name cannot be empty'); return; }
+            c.name = name;
+            c.title = name.toUpperCase().slice(0, 20);
+            saveCounters();
+            renderDashboard();
+            if (activeId === c.id) renderActiveCounter(false);
+            showToast('Name updated');
+            vibrate(15);
+        });
+
+        saveTargetBtn.addEventListener('click', () => {
+            if (!editingCounterId) return;
+            const c = counters.find(x => x.id === editingCounterId);
+            if (!c) return;
+            const val = parseInt(editCounterTarget.value, 10);
+            c.target = (isNaN(val) || val < 1) ? 0 : val;
+            saveCounters();
+            renderDashboard();
+            if (activeId === c.id) renderActiveCounter(true);
+            showToast(c.target > 0 ? 'Target set to ' + c.target : 'Target cleared');
+            vibrate(15);
+        });
+
+        resetSessionBtn.addEventListener('click', () => {
+            if (!editingCounterId) return;
+            const c = counters.find(x => x.id === editingCounterId);
+            if (!c) return;
+            c.session = 0;
+            saveCounters();
+            renderDashboard();
+            if (activeId === c.id) renderActiveCounter(true);
+            showToast('Session reset to 0');
+            vibrate([20, 30, 20]);
+        });
+
+        resetAllBtn.addEventListener('click', () => {
+            if (!editingCounterId) return;
+            const c = counters.find(x => x.id === editingCounterId);
+            if (!c) return;
+            askConfirm(
+                'Reset All',
+                `Reset total and session of "${c.name}" to 0?`,
+                () => {
+                    c.total = 0;
+                    c.session = 0;
+                    saveCounters();
+                    renderDashboard();
+                    if (activeId === c.id) renderActiveCounter(true);
+                    showToast('Counter reset');
+                    vibrate([30, 40, 30, 40, 30]);
+                    closeAllSheets();
+                }
+            );
+        });
+
+        deleteCounterBtn.addEventListener('click', () => {
+            if (!editingCounterId) return;
+            const c = counters.find(x => x.id === editingCounterId);
+            if (!c) return;
+            askConfirm(
+                'Delete Counter',
+                `Delete "${c.name}" permanently? This cannot be undone.`,
+                () => {
+                    counters = counters.filter(x => x.id !== c.id);
+                    saveCounters();
+                    renderDashboard();
+                    if (activeId === c.id) closeCounter();
+                    showToast('Counter deleted');
+                    vibrate([40, 30, 40]);
+                    closeAllSheets();
+                }
+            );
+        });
+
+        // ============================================================
+        //  CONFIRM
+        // ============================================================
+        function askConfirm(title, msg, onOk) {
+            confirmTitle.textContent = title;
+            confirmMsg.textContent = msg;
+            pendingConfirm = onOk;
+            confirmDialog.classList.add('open');
+        }
+
+        confirmOkBtn.addEventListener('click', () => {
+            const cb = pendingConfirm;
+            pendingConfirm = null;
+            confirmDialog.classList.remove('open');
+            if (typeof cb === 'function') cb();
+        });
+        confirmCancelBtn.addEventListener('click', () => {
+            pendingConfirm = null;
+            confirmDialog.classList.remove('open');
+        });
+
+        // ============================================================
+        //  GLOBAL SETTINGS SHEET
         // ============================================================
         function openSettings() {
-            settingsPanel.classList.add('open');
+            vibeSwitch.checked   = vibeOn;
+            rippleSwitch.checked = rippleOn;
+            animSwitch.checked   = animOn;
+            guardSwitch.checked  = guardOn;
+            wakeSwitch.checked   = wakeOn;
+
+            buildThemeGridFor(themeGrid, defaultThemeKey, (key) => {
+                defaultThemeKey = key;
+                saveSettings();
+                // If no counter is active, apply immediately
+                if (!activeId) applyCurrentTheme();
+            });
+
+            buildVibeOptions();
             settingsOverlay.classList.add('open');
-            targetInput.value = target > 0 ? target : '';
-            renderCounters(false);
-        }
-        function closeSettings() {
-            settingsPanel.classList.remove('open');
-            settingsOverlay.classList.remove('open');
+            settingsSheet.classList.add('open');
         }
 
+        // ============================================================
+        //  EVENT LISTENERS
+        // ============================================================
+        addCounterBtn.addEventListener('click', () => openAddSheet());
         settingsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             openSettings();
         });
-        settingsOverlay.addEventListener('click', closeSettings);
-        settingsPanel.addEventListener('pointerdown', (e) => e.stopPropagation());
-
-        // ============================================================
-        //  TARGET
-        // ============================================================
-        function setTarget() {
-            const val = parseInt(targetInput.value, 10);
-            target = (isNaN(val) || val < 1) ? 0 : val;
-            recompute();
-            renderCounters(true);
-            saveAll();
-            vibrate(20);
-            showToast(target > 0 ? 'Target set to ' + target : 'Target cleared');
-        }
-        setTargetBtn.addEventListener('click', setTarget);
-        targetInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') setTarget();
+        backBtn.addEventListener('click', () => {
+            vibrate(15);
+            closeCounter();
+        });
+        counterSettingsBtn.addEventListener('click', () => {
+            if (activeId) openOptionsFor(activeId);
         });
 
-        // ============================================================
-        //  TOGGLES
-        // ============================================================
-        vibeSwitch.addEventListener('change', () => {
-            vibeOn = vibeSwitch.checked;
-            saveSettings();
-            if (vibeOn) vibrate();
+        addOverlay.addEventListener('click', closeAllSheets);
+        optionsOverlay.addEventListener('click', closeAllSheets);
+        settingsOverlay.addEventListener('click', closeAllSheets);
+
+        [addSheet, optionsSheet, settingsSheet].forEach(s => {
+            s.addEventListener('pointerdown', (e) => e.stopPropagation());
         });
-        rippleSwitch.addEventListener('change', () => {
-            rippleOn = rippleSwitch.checked;
-            saveSettings();
-        });
-        animSwitch.addEventListener('change', () => {
-            animOn = animSwitch.checked;
-            saveSettings();
-        });
-        fullscreenSwitch.addEventListener('change', () => {
-            fullscreenOn = fullscreenSwitch.checked;
-            saveSettings();
-            showToast(fullscreenOn ? 'Full-screen tap ON' : 'Tap only in center');
-        });
+        confirmDialog.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+        vibeSwitch.addEventListener('change', () => { vibeOn = vibeSwitch.checked; saveSettings(); if (vibeOn) vibrate(); });
+        rippleSwitch.addEventListener('change', () => { rippleOn = rippleSwitch.checked; saveSettings(); });
+        animSwitch.addEventListener('change', () => { animOn = animSwitch.checked; saveSettings(); });
+        guardSwitch.addEventListener('change', () => { guardOn = guardSwitch.checked; saveSettings(); });
         wakeSwitch.addEventListener('change', () => {
             wakeOn = wakeSwitch.checked;
             saveSettings();
-            if (wakeOn) requestWakeLock();
-            else releaseWakeLock();
+            if (wakeOn) requestWakeLock(); else releaseWakeLock();
             showToast(wakeOn ? 'Screen will stay awake' : 'Wake lock disabled');
-        });
-
-        // ============================================================
-        //  RESET
-        // ============================================================
-        resetSessionBtn.addEventListener('click', () => {
-            session = 0;
-            animateCount(sessionCountEl, session);
-            renderCounters(false);
-            vibrate(20);
-            showToast('Session reset to 0');
-        });
-
-        resetAllBtn.addEventListener('click', () => {
-            total = 0;
-            session = 0;
-            recompute();
-            renderCounters(true);
-            saveAll();
-            vibrate([30, 40, 30, 40, 30]);
-            showToast('All counts reset');
-        });
-
-        // ============================================================
-        //  EXPORT / COPY STATS
-        // ============================================================
-        exportBtn.addEventListener('click', async () => {
-            const now = new Date();
-            const text =
-                '🪷 Radha Naam Stats\n' +
-                '────────────────\n' +
-                'Total   : ' + total + '\n' +
-                'Session : ' + session + '\n' +
-                'Target  : ' + (target > 0 ? target : '—') + '\n' +
-                'Remaining: ' + (target > 0 ? remaining : '—') + '\n' +
-                'Date    : ' + now.toLocaleString();
-            try {
-                await navigator.clipboard.writeText(text);
-                showToast('Stats copied to clipboard ✓');
-            } catch (e) {
-                // fallback
-                const ta = document.createElement('textarea');
-                ta.value = text;
-                ta.style.position = 'fixed';
-                ta.style.opacity = '0';
-                document.body.appendChild(ta);
-                ta.select();
-                try { document.execCommand('copy'); showToast('Stats copied ✓'); }
-                catch (err) { showToast('Copy failed'); }
-                ta.remove();
-            }
-            vibrate(15);
         });
 
         // ============================================================
         //  INIT
         // ============================================================
-        buildThemeGrid();
-        buildVibeOptions();
-        applyTheme(themeKey);
-        recompute();
-        renderCounters(false);
-        saveAll();
-        saveSettings();
+        loadCounters();
+        if (counters.length === 0) {
+            counters.push({
+                id: uid(),
+                name: 'Radha Naam',
+                icon: '🪷',
+                theme: defaultThemeKey,
+                title: 'RADHA',
+                total: 0,
+                session: 0,
+                target: 0
+            });
+            saveCounters();
+        }
 
-        // wake lock on load if enabled
+        applyCurrentTheme();
+        buildVibeOptions();
+        renderDashboard();
+
         if (wakeOn) {
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible' && wakeOn) requestWakeLock();
@@ -1474,16 +2013,16 @@
             requestWakeLock();
         }
 
-        // misc
         document.addEventListener('gesturestart', (e) => e.preventDefault());
         document.addEventListener('contextmenu', (e) => {
             if (e.target.closest('#app')) e.preventDefault();
         });
-        window.addEventListener('pagehide', saveAll);
-        window.addEventListener('beforeunload', saveAll);
+        window.addEventListener('pagehide', saveCounters);
+        window.addEventListener('beforeunload', saveCounters);
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'hidden') saveAll();
+            if (document.visibilityState === 'hidden') saveCounters();
         });
+
     })();
 </script>
 </body>
